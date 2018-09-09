@@ -1576,7 +1576,7 @@ namespace Jackett.Common.Indexers
                         release.DownloadVolumeFactor = 1;
                         release.UploadVolumeFactor = 1;
 
-                        if (release.Category.Contains(TorznabCatType.MoviesForeign.ID))
+                        if (release.Category.Contains(TorznabCatType.Movies.ID) ||release.Category.Contains(TorznabCatType.MoviesForeign.ID))
                         {
                             ParseMovieRelease(release);
                         }
