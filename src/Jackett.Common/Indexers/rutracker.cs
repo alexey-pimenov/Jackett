@@ -1624,7 +1624,7 @@ namespace Jackett.Common.Indexers
             //Movies are named like this - title1 / title2 / title3 (Director) [Year, Genre etc, quality] sound/audio
             //Radar gets stuck on director's name and slashes betwen titles
             //We trying to gent this info like Title - Year - Quality - sound/audio
-            var regex = new Regex("([А-Яа-я\\d\\s\\w\\/]+).*\\[([\\d]{4}).[,А-Яа-я\\d\\s\\w\\/\\-]+,.?([\\w\\s\\-]+)\\](.*)");
+            var regex = new Regex("([^\\(]+).*\\[([\\d]{4}).[,А-Яа-я\\d\\s\\w\\/\\-]+,.?([\\w\\s\\-]+)\\](.*)");
             var IsCyrillic = new Regex("\\p{IsCyrillic}");
             var match = regex.Match(release.Title);
             if (match.Success)
