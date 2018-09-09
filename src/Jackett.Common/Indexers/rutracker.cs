@@ -1576,7 +1576,9 @@ namespace Jackett.Common.Indexers
                         release.DownloadVolumeFactor = 1;
                         release.UploadVolumeFactor = 1;
 
-                        if (release.Category.Contains(TorznabCatType.Movies.ID) ||release.Category.Contains(TorznabCatType.MoviesForeign.ID))
+                        if (release.Category.Contains(TorznabCatType.Movies.ID) 
+                            || release.Category.Contains(TorznabCatType.MoviesForeign.ID)
+                            || release.Category.Contains(TorznabCatType.MoviesHD.ID))
                         {
                             ParseMovieRelease(release);
                         }
@@ -1628,18 +1630,19 @@ namespace Jackett.Common.Indexers
             if (match.Success)
             {
                 var titles = match.Groups[1].Value.Split('/');
-                String title = null;
-                foreach (var t in titles){
+                var year = match.Groups[2].Value;
+                var quality = match.Groups[3].Value;
+                foreach (var title in titles){
                     if (!IsCyrillic.IsMatch(title))
                     {
                         release.Title = title.Trim();
                     }
                 }
-                if (title.IsNullOrEmptyOrWhitespace())
+                if (release.Title.IsNullOrEmptyOrWhitespace())
                 {
-                    title = titles[0];
+                    release.Title = titles[0].Trim();
                 }
-                release.Title +=  " " + match.Groups[2].Value + " " + match.Groups[3].Value + " " + match.Groups[4].Value;
+                release.Title +=  " "+  year + " " + quality + " " + match.Groups[4].Value;
             }
         }
     }
