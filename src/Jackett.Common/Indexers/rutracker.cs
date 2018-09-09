@@ -1632,6 +1632,9 @@ namespace Jackett.Common.Indexers
                 var titles = match.Groups[1].Value.Split('/');
                 var year = match.Groups[2].Value;
                 var quality = match.Groups[3].Value;
+                quality = Regex.Replace(quality, "WEB-DLRip", "WEBDL", RegexOptions.IgnoreCase);
+                quality = Regex.Replace(quality, "WEB-DL", "WEBDL", RegexOptions.IgnoreCase);
+                quality = Regex.Replace(quality, "HDTVRip", "HDTV", RegexOptions.IgnoreCase);
                 foreach (var title in titles){
                     if (!IsCyrillic.IsMatch(title))
                     {
