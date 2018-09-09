@@ -69,7 +69,8 @@ namespace Jackett.Common.Indexers
             AddCategoryMapping(2091, TorznabCatType.MoviesForeign, " | - Movies 2001-2005");
             AddCategoryMapping(2092, TorznabCatType.MoviesForeign, " | - Movies 2006-2010");
             AddCategoryMapping(2093, TorznabCatType.MoviesForeign, " | - Movies 2011-2015");
-            AddCategoryMapping(2200, TorznabCatType.MoviesForeign, " | - Movies 2016");
+            AddCategoryMapping(2200, TorznabCatType.MoviesForeign, " | - Movies 2016-2017");
+            AddCategoryMapping(1950, TorznabCatType.MoviesForeign, " | - Movies 2018");
             AddCategoryMapping(934, TorznabCatType.MoviesForeign, " | - Asian movies");
             AddCategoryMapping(505, TorznabCatType.MoviesForeign, " | - Indian Cinema");
             AddCategoryMapping(212, TorznabCatType.MoviesForeign, " | - Movie Collections");
@@ -1575,6 +1576,10 @@ namespace Jackett.Common.Indexers
                         release.DownloadVolumeFactor = 1;
                         release.UploadVolumeFactor = 1;
 
+                        if (release.Category.Contains(TorznabCatType.MoviesForeign.ID))
+                        {
+                            ParseMovieRelease(release);
+                        }
                         if (release.Category.Contains(TorznabCatType.TV.ID))
                         {
                             // extract season and episodes
@@ -1610,6 +1615,32 @@ namespace Jackett.Common.Indexers
             }
 
             return releases;
+        }
+
+        private void ParseMovieRelease(ReleaseInfo release)
+        {
+            //Movies are named like this - title1 / title2 / title3 (Director) [Year, Genre etc, quality] sound/audio
+            //Radar gets stuck on director's name and slashes betwen titles
+            //We trying to gent this info like Title - Year - Quality - sound/audio
+            var regex = new Regex("([А-Яа-я\\d\\s\\w\\/]+).*\\[([\\d]{4}).[,А-Яа-я\\d\\s\\w\\/\\-]+,.?([\\w\\s\\-]+)\\](.*)");
+            var IsCyrillic = new Regex("\\p{IsCyrillic}");
+            var match = regex.Match(release.Title);
+            if (match.Success)
+            {
+                var titles = match.Groups[1].Value.Split('/');
+                String title = null;
+                foreach (var t in titles){
+                    if (!IsCyrillic.IsMatch(title))
+                    {
+                        release.Title = title.Trim();
+                    }
+                }
+                if (title.IsNullOrEmptyOrWhitespace())
+                {
+                    title = titles[0];
+                }
+                release.Title +=  " " + match.Groups[2].Value + " " + match.Groups[3].Value + " " + match.Groups[4].Value;
+            }
         }
     }
 }
