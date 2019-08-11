@@ -4,7 +4,7 @@ using System.Collections.Specialized;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using AngleSharp.Parser.Html;
+using AngleSharp.Html.Parser;
 using Jackett.Common.Models;
 using Jackett.Common.Models.IndexerConfig;
 using Jackett.Common.Services.Interfaces;
@@ -60,6 +60,7 @@ namespace Jackett.Common.Indexers
             AddCategoryMapping(66, TorznabCatType.TVSport, "Football - Super Bowls");
             AddCategoryMapping(53, TorznabCatType.TVSport, "Football - NCAA");
             AddCategoryMapping(99, TorznabCatType.TVSport, "Football - CFL");
+            AddCategoryMapping(101, TorznabCatType.TVSport, "Football - AAF");
             AddCategoryMapping(54, TorznabCatType.TVSport, "Football - Reviews and highlights");
             AddCategoryMapping(97, TorznabCatType.TVSport, "Football - Documentaries");
             AddCategoryMapping(44, TorznabCatType.TVSport, "Football - Other");
@@ -103,6 +104,7 @@ namespace Jackett.Common.Indexers
             AddCategoryMapping(94, TorznabCatType.TVSport, "Other sports - Misc");
 
             AddCategoryMapping(56, TorznabCatType.TVSport, "Sports on tv");
+            AddCategoryMapping(30, TorznabCatType.TVSport, "Sports");
         }
 
         public override async Task<IndexerConfigurationStatus> ApplyConfiguration(JToken configJson)
@@ -172,7 +174,7 @@ namespace Jackett.Common.Indexers
                 string RowsSelector = "ul.topics > li.row";
 
                 var ResultParser = new HtmlParser();
-                var SearchResultDocument = ResultParser.Parse(results.Content);
+                var SearchResultDocument = ResultParser.ParseDocument(results.Content);
                 var Rows = SearchResultDocument.QuerySelectorAll(RowsSelector);
                 foreach (var Row in Rows)
                 {
@@ -190,10 +192,10 @@ namespace Jackett.Common.Indexers
                         release.Guid = release.Comments;
 
                         var detailsResult = await RequestStringWithCookies(SiteLink + qDetailsLink.GetAttribute("href"));
-                        var DetailsResultDocument = ResultParser.Parse(detailsResult.Content);
+                        var DetailsResultDocument = ResultParser.ParseDocument(detailsResult.Content);
                         var qDownloadLink = DetailsResultDocument.QuerySelector("table.table2 > tbody > tr > td > a[href^=\"/download/torrent.php?id\"]");
 
-                        release.Link = new Uri(SiteLink + qDownloadLink.GetAttribute("href"));
+                        release.Link = new Uri(SiteLink + qDownloadLink.GetAttribute("href").TrimStart('/'));
 
                         release.Seeders = ParseUtil.CoerceInt(Row.QuerySelector("span.seed").TextContent);
                         release.Peers = ParseUtil.CoerceInt(Row.QuerySelector("span.leech").TextContent) + release.Seeders;
@@ -213,6 +215,10 @@ namespace Jackett.Common.Indexers
                         size = size.Replace("GiB", "GB");
                         size = size.Replace("MiB", "MB");
                         size = size.Replace("KiB", "KB");
+
+                        size = size.Replace("ГБ", "GB");
+                        size = size.Replace("МБ", "MB");
+                        size = size.Replace("КБ", "KB");
 
                         release.Size = ReleaseInfo.GetBytes(size);
 

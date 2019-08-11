@@ -57,7 +57,7 @@ namespace Jackett.Common.Indexers
             Language = "da-dk";
             Type = "private";
 
-            TorznabCaps.SupportsImdbSearch = false;
+            TorznabCaps.SupportsImdbMovieSearch = false;
 
             // Apps
             AddCategoryMapping("cat=63", TorznabCatType.PCPhoneAndroid, "APPS - Android");
@@ -321,7 +321,7 @@ namespace Jackett.Common.Indexers
                         if (torrentRowList.Count == 0)
                         {
                             // No results found
-                            Output("\nNo result found for your query, please try another search term ...\n", "info");
+                            Output("\nNo result found for your query, please try another search term or change the theme you're currently using on the site as this is an unsupported solution...\n", "info");
 
                             // No result found for this query
                             break;
@@ -348,7 +348,7 @@ namespace Jackett.Common.Indexers
                         // Category
                         string categoryID = tRow.Find("td:eq(0) > a:eq(0)").Attr("href").Split('?').Last();
                         var newznab = MapTrackerCatToNewznab(categoryID);
-                        Output("Category: " + MapTrackerCatToNewznab(categoryID).First().ToString() + " (" + categoryID + ")");
+                        Output("Category: " + (newznab.Count > 0 ? newznab.First().ToString() : "unknown category") + " (" + categoryID + ")");
 
                         // Seeders
                         int seeders = ParseUtil.CoerceInt(Regex.Match(tRow.Find("td:eq(9)").Text(), @"\d+").Value);
@@ -397,7 +397,7 @@ namespace Jackett.Common.Indexers
                         // Building release infos
                         var release = new ReleaseInfo
                         {
-                            Category = MapTrackerCatToNewznab(categoryID.ToString()),
+                            Category = newznab,
                             Title = name,
                             Seeders = seeders,
                             Peers = seeders + leechers,
@@ -678,9 +678,32 @@ namespace Jackett.Common.Indexers
         /// <returns>JQuery Object</returns>
         private CQ FindTorrentRows()
         {
-            // Return all occurencis of torrents found
-            //return _fDom["#content > table > tr"];
-            return _fDom["# base_content > table.mainouter > tbody > tr > td.outer > div.article > table > tbody > tr:not(:first)"];
+            var defaultTheme = new[] { "/templates/1/", "/templates/2/", "/templates/3/", "/templates/4/", "/templates/5/", "/templates/6/", "/templates/11/", "/templates/12/" };
+            var oldV2 = new[] { "/templates/7/", "/templates/8/", "/templates/9/", "/templates/10/" };
+            var xmas = new[] { "/templates/14/" };
+
+            if (xmas.Any(_fDom.Document.Body.InnerHTML.Contains))
+            {
+                // Return all occurencis of torrents found
+                // $('#base_around > table.mainouter > tbody > tr > td.outer > div.article > table  > tbody:not(:first) > tr')
+                return _fDom["#base_around > table.mainouter > tbody > tr > td.outer > div.article > table  > tbody:not(:first) > tr"];
+            }
+
+            // template 7 contains a reference to template 2 (logout button), so check for oldV2 first
+            if (oldV2.Any(_fDom.Document.Body.InnerHTML.Contains))
+            {
+                // Return all occurencis of torrents found
+                // $('#base_content > table.mainouter > tbody > tr > td.outer > div.article > table > tbody > tr:not(:first)')
+                return _fDom["# base_content > table.mainouter > tbody > tr > td.outer > div.article > table > tbody > tr:not(:first)"];
+            }
+
+            if (defaultTheme.Any(_fDom.Document.Body.InnerHTML.Contains))
+            {
+                // Return all occurencis of torrents found
+                // $('#base_content2 > div.article > table > tbody:not(:first) > tr')
+                return _fDom["# base_content2 > div.article > table > tbody:not(:first) > tr"];
+            }
+            return _fDom;
         }
 
         /// <summary>

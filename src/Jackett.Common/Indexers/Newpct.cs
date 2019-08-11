@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using AngleSharp.Parser.Html;
+using AngleSharp.Html.Parser;
 using Jackett.Common.Models;
 using Jackett.Common.Models.IndexerConfig;
 using Jackett.Common.Services.Interfaces;
@@ -33,12 +33,13 @@ namespace Jackett.Common.Indexers
             public int? Season;
             public int? Episode;
             public int? EpisodeTo;
+            public int Score;
 
             public NewpctRelease()
             {
             }
 
-            public NewpctRelease(NewpctRelease copyFrom): 
+            public NewpctRelease(NewpctRelease copyFrom) :
                 base(copyFrom)
             {
                 NewpctReleaseType = copyFrom.NewpctReleaseType;
@@ -46,6 +47,7 @@ namespace Jackett.Common.Indexers
                 Season = copyFrom.Season;
                 Episode = copyFrom.Episode;
                 EpisodeTo = copyFrom.EpisodeTo;
+                Score = copyFrom.Score;
             }
 
             public override object Clone()
@@ -54,29 +56,73 @@ namespace Jackett.Common.Indexers
             }
         }
 
-        private static Uri SiteLinkUri = new Uri("http://www.tvsinpagar.com/");
+        class DownloadMatcher
+        {
+            public Regex MatchRegex;
+            public MatchEvaluator MatchEvaluator;
+        }
+
+        private static Uri DefaultSiteLinkUri =
+            new Uri("https://descargas2020.org");
+
+        private static Uri[] ExtraSiteLinkUris = new Uri[]
+        {
+            new Uri("https://pctnew.site"),
+            new Uri("https://descargas2020.site"),
+            new Uri("http://torrentrapid.com/"),
+            new Uri("http://tumejortorrent.com/"),
+            new Uri("http://pctnew.com/"),
+            new Uri("http://torrentlocura.com/"),
+        };
+
+        private static Uri[] LegacySiteLinkUris = new Uri[]
+        {
+            new Uri("https://pctnew.site"),
+            new Uri("http://www.tvsinpagar.com/"),
+            new Uri("http://descargas2020.com/"),
+        };
+
         private NewpctRelease _mostRecentRelease;
+        private char[] _wordSeparators = new char[] { ' ', '.', ',', ';', '(', ')', '[', ']', '-', '_' };
+        private int _wordNotFoundScore = 100000;
         private Regex _searchStringRegex = new Regex(@"(.+?)S0?(\d+)(E0?(\d+))?$", RegexOptions.IgnoreCase);
         private Regex _titleListRegex = new Regex(@"Serie( *Descargar)?(.+?)(Temporada(.+?)(\d+)(.+?))?Capitulos?(.+?)(\d+)((.+?)(\d+))?(.+?)-(.+?)Calidad(.*)", RegexOptions.IgnoreCase);
         private Regex _titleClassicRegex = new Regex(@"(\[[^\]]*\])?\[Cap\.(\d{1,2})(\d{2})([_-](\d{1,2})(\d{2}))?\]", RegexOptions.IgnoreCase);
         private Regex _titleClassicTvQualityRegex = new Regex(@"\[([^\]]*HDTV[^\]]*)", RegexOptions.IgnoreCase);
+        private DownloadMatcher[] _downloadMatchers = new DownloadMatcher[]
+        {
+            new DownloadMatcher() { MatchRegex = new Regex("([^\"]*/descargar-torrent/[^\"]*)") },
+            new DownloadMatcher()
+            {
+                MatchRegex = new Regex(@"nalt\s*=\s*'([^\/]*)"),
+                MatchEvaluator = m => string.Format("/download/{0}.torrent", m.Groups[1])
+            },
+        };
 
         private int _maxDailyPages = 7;
+        private int _maxMoviesPages = 30;
         private int _maxEpisodesListPages = 100;
-        private int[] _allTvCategories = TorznabCatType.TV.SubCategories.Select(c => c.ID).ToArray();
+        private int[] _allTvCategories = (new TorznabCategory[] { TorznabCatType.TV }).Concat(TorznabCatType.TV.SubCategories).Select(c => c.ID).ToArray();
+        private int[] _allMoviesCategories = (new TorznabCategory[] { TorznabCatType.Movies }).Concat(TorznabCatType.Movies.SubCategories).Select(c => c.ID).ToArray();
 
+        private bool _includeVo;
+        private bool _filterMovies;
         private DateTime _dailyNow;
         private int _dailyResultIdx;
 
+        private string _searchUrl = "/buscar";
         private string _dailyUrl = "/ultimas-descargas/pg/{0}";
         private string[] _seriesLetterUrls = new string[] { "/series/letter/{0}", "/series-hd/letter/{0}" };
         private string[] _seriesVOLetterUrls = new string[] { "/series-vo/letter/{0}" };
         private string _seriesUrl = "{0}/pg/{1}";
+        private string[] _voUrls = new string[] { "serie-vo", "serievo" };
+
+        public override string[] LegacySiteLinks { get; protected set; } = LegacySiteLinkUris.Select(u => u.AbsoluteUri).ToArray();
 
         public Newpct(IIndexerConfigurationService configService, WebClient wc, Logger l, IProtectionService ps)
             : base(name: "Newpct",
                 description: "Newpct - descargar torrent peliculas, series",
-                link: SiteLinkUri.AbsoluteUri,
+                link: DefaultSiteLinkUri.AbsoluteUri,
                 caps: new TorznabCapabilities(TorznabCatType.TV,
                                               TorznabCatType.TVSD,
                                               TorznabCatType.TVHD,
@@ -93,13 +139,15 @@ namespace Jackett.Common.Indexers
 
             var voItem = new BoolItem() { Name = "Include original versions in search results", Value = false };
             configData.AddDynamic("IncludeVo", voItem);
+
+            var filterMoviesItem = new BoolItem() { Name = "Only full match movies", Value = true };
+            configData.AddDynamic("FilterMovies", filterMoviesItem);
         }
 
         public override async Task<IndexerConfigurationStatus> ApplyConfiguration(JToken configJson)
         {
             configData.LoadValuesFromJson(configJson);
             var releases = await PerformQuery(new TorznabQuery());
-            SiteLinkUri = new Uri(configData.SiteLink.Value);
 
             await ConfigureIfOK(string.Empty, releases.Count() > 0, () =>
             {
@@ -111,33 +159,90 @@ namespace Jackett.Common.Indexers
 
         protected override async Task<IEnumerable<ReleaseInfo>> PerformQuery(TorznabQuery query)
         {
-            return await PerformQuery(query, 0);
-        }
-
-        public override async Task<byte[]> Download(Uri link)
-        {
-            var results = await RequestStringWithCookies(link.AbsoluteUri);
-            var content = results.Content;
-
-            Regex regex = new Regex("[^\"]*/descargar-torrent/\\d+_[^\"]*");
-            Match match = regex.Match(content);
-            if (match.Success)
-                link = new Uri(match.Groups[0].Value);
-            else
-                this.logger.Warn("Newpct - download link not found in " + link);
-
-            return await base.Download(link);
-        }
-
-        private async Task<IEnumerable<ReleaseInfo>> PerformQuery(TorznabQuery query, int attempts)
-        {
-            var releases = new List<ReleaseInfo>();
+            Uri link = new Uri(configData.SiteLink.Value);
 
             lock (cache)
             {
                 CleanCache();
             }
 
+            return await PerformQuery(link, query, 0);
+        }
+
+        public override async Task<byte[]> Download(Uri linkParam)
+        {
+            List<string> links = new List<string>();
+            links.Add(linkParam.AbsoluteUri);
+
+            IEnumerable<Uri> knownUris = (new Uri[] { DefaultSiteLinkUri }).
+                Concat(ExtraSiteLinkUris);
+
+            foreach (Uri extraSiteUri in knownUris)
+            {
+                UriBuilder ub = new UriBuilder(linkParam);
+                ub.Host = extraSiteUri.Host;
+                string link = ub.Uri.AbsoluteUri;
+                if (link != linkParam.AbsoluteUri)
+                    links.Add(ub.Uri.AbsoluteUri);
+            }
+
+            foreach (string link in links)
+            {
+                byte[] result = null;
+
+                try
+                {
+                    var results = await RequestStringWithCookiesAndRetry(link);
+                    await FollowIfRedirect(results);
+                    var content = results.Content;
+
+                    if (content != null)
+                    {
+                        Uri uriLink = ExtractDownloadUri(content, link);
+                        if (uriLink != null)
+                            result = await base.Download(uriLink);
+                    }
+                }
+                catch
+                {
+                }
+
+                if (result != null)
+                    return result;
+                else
+                    this.logger.Warn("Newpct - download link not found in " + link);
+            }
+
+            return null;
+        }
+
+        private Uri ExtractDownloadUri(string content, string baseLink)
+        {
+            foreach (DownloadMatcher matcher in _downloadMatchers)
+            {
+                Match match = matcher.MatchRegex.Match(content);
+                if (match.Success)
+                {
+                    string linkText; 
+                        
+                    if (matcher.MatchEvaluator != null)
+                        linkText = (string)matcher.MatchEvaluator.DynamicInvoke(match);
+                    else
+                        linkText = match.Groups[1].Value;
+
+                    return new Uri(new Uri(baseLink), linkText);
+                }
+            }
+
+            return null;
+        }
+
+        private async Task<IEnumerable<ReleaseInfo>> PerformQuery(Uri siteLink, TorznabQuery query, int attempts)
+        {
+            var releases = new List<ReleaseInfo>();
+
+            _includeVo = ((BoolItem)configData.GetDynamic("IncludeVo")).Value;
+            _filterMovies = ((BoolItem)configData.GetDynamic("FilterMovies")).Value;
             _dailyNow = DateTime.Now;
             _dailyResultIdx = 0;
             bool rssMode = string.IsNullOrEmpty(query.SanitizedSearchTerm);
@@ -147,8 +252,9 @@ namespace Jackett.Common.Indexers
                 int pg = 1;
                 while (pg <= _maxDailyPages)
                 {
-                    Uri url = new Uri(SiteLinkUri, string.Format(_dailyUrl, pg));
-                    var results = await RequestStringWithCookies(url.AbsoluteUri);
+                    Uri url = new Uri(siteLink, string.Format(_dailyUrl, pg));
+                    var results = await RequestStringWithCookiesAndRetry(url.AbsoluteUri);
+                    await FollowIfRedirect(results);
 
                     var items = ParseDailyContent(results.Content);
                     if (items == null || !items.Any())
@@ -169,21 +275,27 @@ namespace Jackett.Common.Indexers
             }
             else
             {
-                //Only tv search supported. (newpct web search is useless)
                 bool isTvSearch = query.Categories == null || query.Categories.Length == 0 ||
                     query.Categories.Any(c => _allTvCategories.Contains(c));
                 if (isTvSearch)
                 {
-                    return await TvSearch(query);
+                    releases.AddRange(await TvSearch(siteLink, query));
+                }
+
+                bool isMovieSearch = query.Categories == null || query.Categories.Length == 0 ||
+                    query.Categories.Any(c => _allMoviesCategories.Contains(c));
+                if (isMovieSearch)
+                {
+                    releases.AddRange(await MovieSearch(siteLink, query));
                 }
             }
 
             return releases;
         }
 
-        private async Task<IEnumerable<ReleaseInfo>> TvSearch(TorznabQuery query)
+        private async Task<IEnumerable<ReleaseInfo>> TvSearch(Uri siteLink, TorznabQuery query)
         {
-            List<ReleaseInfo> newpctReleases  = null;
+            List<ReleaseInfo> newpctReleases = null;
 
             string seriesName = query.SanitizedSearchTerm;
             int? season = query.Season > 0 ? (int?)query.Season : null;
@@ -216,7 +328,7 @@ namespace Jackett.Common.Indexers
                 newpctReleases = new List<ReleaseInfo>();
 
                 //Search series url
-                foreach (Uri seriesListUrl in SeriesListUris(seriesName))
+                foreach (Uri seriesListUrl in SeriesListUris(siteLink, seriesName))
                 {
                     newpctReleases.AddRange(await GetReleasesFromUri(seriesListUrl, seriesName));
                 }
@@ -225,7 +337,7 @@ namespace Jackett.Common.Indexers
                 if (newpctReleases.Count == 0 && !(seriesName.ToLower().StartsWith("the")))
                 {
                     seriesName = "The " + seriesName;
-                    foreach (Uri seriesListUrl in SeriesListUris(seriesName))
+                    foreach (Uri seriesListUrl in SeriesListUris(siteLink, seriesName))
                     {
                         newpctReleases.AddRange(await GetReleasesFromUri(seriesListUrl, seriesName));
                     }
@@ -242,7 +354,8 @@ namespace Jackett.Common.Indexers
             return newpctReleases.Where(r =>
             {
                 NewpctRelease nr = r as NewpctRelease;
-                return nr.Season.HasValue != season.HasValue || //Can't determine if same season
+                return (
+                    nr.Season.HasValue != season.HasValue || //Can't determine if same season
                     nr.Season.HasValue && season.Value == nr.Season.Value && //Same season and ...
                     (
                         nr.Episode.HasValue != episode.HasValue || //Can't determine if same episode
@@ -251,14 +364,16 @@ namespace Jackett.Common.Indexers
                             nr.Episode.Value == episode.Value || //Same episode
                             nr.EpisodeTo.HasValue && episode.Value >= nr.Episode.Value && episode.Value <= nr.EpisodeTo.Value //Episode in interval
                         )
-                    );
+                    )
+                );
             });
         }
 
         private async Task<IEnumerable<ReleaseInfo>> GetReleasesFromUri(Uri uri, string seriesName)
         {
             var newpctReleases = new List<ReleaseInfo>();
-            var results = await RequestStringWithCookies(uri.AbsoluteUri);
+            var results = await RequestStringWithCookiesAndRetry(uri.AbsoluteUri);
+            await FollowIfRedirect(results);
 
             //Episodes list
             string seriesEpisodesUrl = ParseSeriesListContent(results.Content, seriesName);
@@ -268,7 +383,8 @@ namespace Jackett.Common.Indexers
                 while (pg < _maxEpisodesListPages)
                 {
                     Uri episodesListUrl = new Uri(string.Format(_seriesUrl, seriesEpisodesUrl, pg));
-                    results = await RequestStringWithCookies(episodesListUrl.AbsoluteUri);
+                    results = await RequestStringWithCookiesAndRetry(episodesListUrl.AbsoluteUri);
+                    await FollowIfRedirect(results);
 
                     var items = ParseEpisodesListContent(results.Content);
                     if (items == null || !items.Any())
@@ -282,10 +398,10 @@ namespace Jackett.Common.Indexers
             return newpctReleases;
         }
 
-        private IEnumerable<Uri> SeriesListUris(string seriesName)
+        private IEnumerable<Uri> SeriesListUris(Uri siteLink, string seriesName)
         {
             IEnumerable<string> lettersUrl;
-            if (!((BoolItem)configData.GetDynamic("IncludeVo")).Value)
+            if (!_includeVo)
             {
                 lettersUrl = _seriesLetterUrls;
             }
@@ -296,14 +412,14 @@ namespace Jackett.Common.Indexers
             string seriesLetter = !char.IsDigit(seriesName[0]) ? seriesName[0].ToString() : "0-9";
             return lettersUrl.Select(urlFormat =>
             {
-                return new Uri(SiteLinkUri, string.Format(urlFormat, seriesLetter.ToLower()));
+                return new Uri(siteLink, string.Format(urlFormat, seriesLetter.ToLower()));
             });
         }
 
         private IEnumerable<NewpctRelease> ParseDailyContent(string content)
         {
             var SearchResultParser = new HtmlParser();
-            var doc = SearchResultParser.Parse(content);
+            var doc = SearchResultParser.ParseDocument(content);
 
             List<NewpctRelease> releases = new List<NewpctRelease>();
 
@@ -319,6 +435,8 @@ namespace Jackett.Common.Indexers
                         title = title2;
 
                     var detailsUrl = anchor.GetAttribute("href");
+                    if (!_includeVo && _voUrls.Any(vo => detailsUrl.ToLower().Contains(vo.ToLower())))
+                        continue;
 
                     var span = row.QuerySelector("span");
                     var quality = span.ChildNodes[0].TextContent.Trim();
@@ -331,12 +449,12 @@ namespace Jackett.Common.Indexers
 
                     NewpctRelease newpctRelease;
                     if (releaseType == ReleaseType.TV)
-                        newpctRelease = GetReleaseFromData(releaseType, 
+                        newpctRelease = GetReleaseFromData(releaseType,
                         string.Format("Serie {0} - {1} Calidad [{2}]", title, language, quality),
                         detailsUrl, quality, language, ReleaseInfo.GetBytes(sizeText), _dailyNow - TimeSpan.FromMilliseconds(_dailyResultIdx));
                     else
                         newpctRelease = GetReleaseFromData(releaseType,
-                        string.Format("{0} [{1}][{2}]", title, quality, language), 
+                        string.Format("{0} [{1}][{2}]", title, quality, language),
                         detailsUrl, quality, language, ReleaseInfo.GetBytes(sizeText), _dailyNow - TimeSpan.FromMilliseconds(_dailyResultIdx));
 
                     releases.Add(newpctRelease);
@@ -353,7 +471,7 @@ namespace Jackett.Common.Indexers
         private string ParseSeriesListContent(string content, string title)
         {
             var SearchResultParser = new HtmlParser();
-            var doc = SearchResultParser.Parse(content);
+            var doc = SearchResultParser.ParseDocument(content);
 
             Dictionary<string, string> results = new Dictionary<string, string>();
 
@@ -378,7 +496,7 @@ namespace Jackett.Common.Indexers
         private IEnumerable<NewpctRelease> ParseEpisodesListContent(string content)
         {
             var SearchResultParser = new HtmlParser();
-            var doc = SearchResultParser.Parse(content);
+            var doc = SearchResultParser.ParseDocument(content);
 
             List<NewpctRelease> releases = new List<NewpctRelease>();
 
@@ -410,6 +528,123 @@ namespace Jackett.Common.Indexers
             return releases;
         }
 
+        private async Task<IEnumerable<ReleaseInfo>> MovieSearch(Uri siteLink, TorznabQuery query)
+        {
+            var releases = new List<NewpctRelease>();
+
+            string searchStr = query.SanitizedSearchTerm;
+
+            int pg = 1;
+            while (pg <= _maxMoviesPages)
+            {
+                var queryCollection = new Dictionary<string, string>();
+                queryCollection.Add("q", searchStr);
+                queryCollection.Add("pg", pg.ToString());
+
+                Uri url = new Uri(siteLink, string.Format(_searchUrl, pg));
+                var results = await PostDataWithCookies(url.AbsoluteUri, queryCollection);
+
+                var items = ParseSearchContent(results.Content);
+                if (items == null)
+                    break;
+
+                releases.AddRange(items);
+                pg++;
+            }
+
+            ScoreReleases(releases, searchStr);
+
+            if (_filterMovies)
+                releases = releases.Where(r => r.Score < _wordNotFoundScore).ToList();
+
+            return releases;
+        }
+
+        private IEnumerable<NewpctRelease> ParseSearchContent(string content)
+        {
+            var SearchResultParser = new HtmlParser();
+            var doc = SearchResultParser.ParseDocument(content);
+
+            List<NewpctRelease> releases = new List<NewpctRelease>();
+
+            try
+            {
+                var rows = doc.QuerySelectorAll(".content .info");
+                if (rows == null || !rows.Any())
+                    return null;
+                foreach (var row in rows)
+                {
+                    var anchor = row.QuerySelector("a");
+                    var h2 = anchor.QuerySelector("h2");
+                    var title = Regex.Replace(h2.TextContent, @"\s+", " ").Trim();
+                    var detailsUrl = anchor.GetAttribute("href");
+
+                    bool isSeries = h2.QuerySelector("span") != null && h2.TextContent.ToLower().Contains("calidad");
+                    bool isGame = title.ToLower().Contains("pcdvd");
+                    if (isSeries || isGame)
+                        continue;
+
+                    var span = row.QuerySelectorAll("span");
+
+                    var pubDateText = span[1].TextContent.Trim();
+                    var sizeText = span[2].TextContent.Trim();
+
+                    long size = 0;
+                    try
+                    {
+                        size = ReleaseInfo.GetBytes(sizeText);
+                    }
+                    catch
+                    {
+                    }
+                    DateTime publishDate;
+                    DateTime.TryParseExact(pubDateText, "dd-MM-yyyy", null, DateTimeStyles.None, out publishDate);
+
+                    var div = row.QuerySelector("div");
+
+                    NewpctRelease newpctRelease;
+                    newpctRelease = GetReleaseFromData(ReleaseType.Movie, title, detailsUrl, null, null, size, publishDate);
+
+                    releases.Add(newpctRelease);
+                }
+            }
+            catch (Exception ex)
+            {
+                OnParseError(content, ex);
+            }
+
+            return releases;
+        }
+
+        private void ScoreReleases(IEnumerable<NewpctRelease> releases, string searchTerm)
+        {
+            string[] searchWords = searchTerm.ToLower().Split(_wordSeparators, StringSplitOptions.None).
+                Select(s => s.Trim()).
+                Where(s => !string.IsNullOrEmpty(s)).ToArray();
+
+            foreach (NewpctRelease release in releases)
+            {
+                release.Score = 0;
+                string[] releaseWords = release.Title.ToLower().Split(_wordSeparators, StringSplitOptions.None).
+                    Select(s => s.Trim()).
+                    Where(s => !string.IsNullOrEmpty(s)).ToArray();
+
+                foreach (string search in searchWords)
+                {
+                    int index = Array.IndexOf(releaseWords, search);
+                    if (index >= 0)
+                    {
+                        release.Score += index;
+                        releaseWords[index] = null;
+                    }
+                    else
+                    {
+                        release.Score += _wordNotFoundScore;
+                    }
+                }
+            }
+        }
+
         ReleaseType ReleaseTypeFromQuality(string quality)
         {
             if (quality.Trim().ToLower().StartsWith("hdtv"))
@@ -434,6 +669,8 @@ namespace Jackett.Common.Indexers
                 result.Episode = int.Parse(match.Groups[8].Value.Trim().PadLeft(2, '0'));
                 result.EpisodeTo = match.Groups[11].Success ? (int?)int.Parse(match.Groups[11].Value.Trim()) : null;
                 string audioQuality = match.Groups[13].Value.Trim(' ', '[', ']');
+                if (string.IsNullOrEmpty(language))
+                    language = audioQuality;
                 quality = match.Groups[14].Value.Trim(' ', '[', ']');
 
                 string seasonText = result.Season.ToString();
@@ -448,11 +685,11 @@ namespace Jackett.Common.Indexers
                 Match matchClassic = _titleClassicRegex.Match(title);
                 if (matchClassic.Success)
                 {
-                    result.Season = matchClassic.Groups[3].Success ? (int?)int.Parse(matchClassic.Groups[3].Value) : null;
-                    result.Episode = matchClassic.Groups[4].Success ? (int?)int.Parse(matchClassic.Groups[4].Value) : null;
-                    result.EpisodeTo = matchClassic.Groups[7].Success ? (int?)int.Parse(matchClassic.Groups[7].Value) : null;
-                    if (matchClassic.Groups[2].Success)
-                        quality = matchClassic.Groups[2].Value;
+                    result.Season = matchClassic.Groups[2].Success ? (int?)int.Parse(matchClassic.Groups[2].Value) : null;
+                    result.Episode = matchClassic.Groups[3].Success ? (int?)int.Parse(matchClassic.Groups[3].Value) : null;
+                    result.EpisodeTo = matchClassic.Groups[6].Success ? (int?)int.Parse(matchClassic.Groups[6].Value) : null;
+                    if (matchClassic.Groups[1].Success)
+                        quality = matchClassic.Groups[1].Value;
                 }
 
                 result.Title = title;
@@ -471,36 +708,38 @@ namespace Jackett.Common.Indexers
                 result.Category = new List<int> { TorznabCatType.Movies.ID };
             }
 
-            result.Size = size;
+            if (size > 0)
+                result.Size = size;
             result.Link = new Uri(detailsUrl);
             result.Guid = result.Link;
+            result.Comments = result.Link;
             result.PublishDate = publishDate;
             result.Seeders = 1;
             result.Peers = 1;
 
-            result.Title = FixedTitle(result, quality);
+            result.Title = FixedTitle(result, quality, language);
 
             return result;
         }
 
-        private string FixedTitle(NewpctRelease release, string quality)
+        private string FixedTitle(NewpctRelease release, string quality, string language)
         {
             if (String.IsNullOrEmpty(release.SeriesName))
             {
                 release.SeriesName = release.Title;
-                if (release.Title.Contains("-"))
-                {
-                    release.SeriesName = release.Title.Substring(0, release.Title.IndexOf('-') - 1);
-                }
+                if (release.NewpctReleaseType == ReleaseType.TV && release.SeriesName.Contains("-"))
+                    release.SeriesName = release.Title.Substring(0, release.SeriesName.IndexOf('-') - 1);
             }
-            if (String.IsNullOrEmpty(quality))
-            {
-                quality = "HDTV";
-            }
+
             var titleParts = new List<string>();
+
             titleParts.Add(release.SeriesName);
+
             if (release.NewpctReleaseType == ReleaseType.TV)
             {
+                if (String.IsNullOrEmpty(quality))
+                    quality = "HDTV";
+
                 var seasonAndEpisode = "S" + release.Season.ToString().PadLeft(2, '0');
                 seasonAndEpisode += "E" + release.Episode.ToString().PadLeft(2, '0');
                 if (release.EpisodeTo != release.Episode && release.EpisodeTo != null && release.EpisodeTo != 0)
@@ -509,12 +748,31 @@ namespace Jackett.Common.Indexers
                 }
                 titleParts.Add(seasonAndEpisode);
             }
-            titleParts.Add(quality.Replace("[", "").Replace("]", ""));
-            if (release.Title.ToLower().Contains("esp") || release.Title.ToLower().Contains("cast"))
+
+            if (!string.IsNullOrEmpty(quality) && !release.SeriesName.Contains(quality))
+            {
+                titleParts.Add(quality);
+            }
+
+            if (!string.IsNullOrWhiteSpace(language) && !release.SeriesName.Contains(language))
+            {
+                titleParts.Add(language);
+            }
+
+            if (release.Title.ToLower().Contains("espa\u00F1ol") ||
+                release.Title.ToLower().Contains("espanol") ||
+                release.Title.ToLower().Contains("castellano") ||
+                release.Title.ToLower().EndsWith("espa"))
             {
                 titleParts.Add("Spanish");
             }
-            return String.Join(".", titleParts);
+
+            string result = String.Join(".", titleParts);
+
+            result = Regex.Replace(result, @"[\[\]]+", ".");
+            result = Regex.Replace(result, @"\.[ \.]*\.", ".");
+
+            return result;
         }
     }
 }

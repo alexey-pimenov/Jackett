@@ -27,6 +27,8 @@ namespace Jackett.Common.Indexers
         };
 
         public override string[] AlternativeSiteLinks { get; protected set; } = new string[] {
+            "https://tday.love/",
+            "https://torrentday.cool/",
             "https://tdonline.org/",
             "https://secure.torrentday.com/",
             "https://torrentday.eu/",
@@ -37,6 +39,10 @@ namespace Jackett.Common.Indexers
             "https://www.torrentday.ru/",
             "https://www.td.af/",
             "https://torrentday.it/",
+            "https://td.findnemo.net/",
+            "https://td.getcrazy.me/",
+            "https://td.venom.global/",
+            "https://td.workisboring.net/",
         };
 
         private new ConfigurationDataRecaptchaLogin configData
@@ -48,7 +54,7 @@ namespace Jackett.Common.Indexers
         public TorrentDay(IIndexerConfigurationService configService, WebClient wc, Logger l, IProtectionService ps)
             : base(name: "TorrentDay",
                 description: "TorrentDay (TD) is a Private site for TV / MOVIES / GENERAL",
-                link: "https://www.torrentday.it/",
+                link: "https://tday.love/",
                 caps: TorznabUtil.CreateDefaultTorznabTVCaps(),
                 configService: configService,
                 client: wc,
@@ -61,7 +67,7 @@ namespace Jackett.Common.Indexers
             Language = "en-us";
             Type = "private";
 
-            TorznabCaps.SupportsImdbSearch = true;
+            TorznabCaps.SupportsImdbMovieSearch = true;
 
             AddCategoryMapping(29, TorznabCatType.TVAnime, "Anime");
             AddCategoryMapping(28, TorznabCatType.PC, "Appz/Packs");
@@ -224,7 +230,7 @@ namespace Jackett.Common.Indexers
                     var release = new ReleaseInfo();
 
                     release.Title = torrent.name;
-                    if ((query.ImdbID == null || !TorznabCaps.SupportsImdbSearch) && !query.MatchQueryStringAND(release.Title))
+                    if ((query.ImdbID == null || !TorznabCaps.SupportsImdbMovieSearch) && !query.MatchQueryStringAND(release.Title))
                         continue;
 
                     release.MinimumRatio = 1;
@@ -234,7 +240,7 @@ namespace Jackett.Common.Indexers
                     var torrentID = (long)torrent.t;
                     release.Comments = new Uri(SiteLink + "details.php?id=" + torrentID);
                     release.Guid = release.Comments;
-                    release.Link = new Uri(SiteLink + "download.php/" + torrentID + "/dummy.torrent");
+                    release.Link = new Uri(SiteLink + "download.php/" + torrentID + "/"+ torrentID + ".torrent");
                     release.PublishDate = DateTimeUtil.UnixTimestampToDateTime((long)torrent.ctime).ToLocalTime();
 
                     release.Size = (long)torrent.size;

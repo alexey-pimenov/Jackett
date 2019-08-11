@@ -7,6 +7,7 @@ using Jackett.Common.Utils;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using NLog;
 using NLog.Web;
 using System;
@@ -47,11 +48,9 @@ namespace Jackett.Server
             {
                 if (string.IsNullOrEmpty(options.Client))
                 {
-                    bool runningOnDotNetCore = RuntimeInformation.FrameworkDescription.IndexOf("Core", StringComparison.OrdinalIgnoreCase) >= 0;
-
-                    if (runningOnDotNetCore)
+                    if (DotNetCoreUtil.IsRunningOnDotNetCore)
                     {
-                        options.Client = "httpclientnetcore";
+                        options.Client = "httpclient2netcore";
                     }
                     else
                     {
@@ -82,6 +81,7 @@ namespace Jackett.Server
                 }
             }
 
+            Initialisation.CheckEnvironmentalVariables(logger);
             Initialisation.ProcessSettings(Settings, logger);
 
             ISerializeService serializeService = new SerializeService();
@@ -185,6 +185,11 @@ namespace Jackett.Server
                 .PreferHostingUrls(true)
                 .UseConfiguration(Configuration)
                 .UseStartup<Startup>()
+                .ConfigureLogging(logging =>
+                {
+                    logging.ClearProviders();
+                    logging.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace);
+                })
                 .UseNLog();
     }
 }

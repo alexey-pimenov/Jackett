@@ -10,7 +10,6 @@ using NLog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using static Jackett.Common.Models.IndexerConfig.ConfigurationData;
@@ -177,10 +176,9 @@ namespace Jackett.Common.Indexers
         //TODO: Remove this section once users have moved off DPAPI
         private bool MigratedFromDPAPI(JToken jsonConfig)
         {
-            bool runningOnDotNetCore = RuntimeInformation.FrameworkDescription.IndexOf("core", StringComparison.OrdinalIgnoreCase) >= 0;
             bool isWindows = Environment.OSVersion.Platform == PlatformID.Win32NT;
 
-            if (!isWindows && runningOnDotNetCore)
+            if (!isWindows && DotNetCoreUtil.IsRunningOnDotNetCore)
             {
                 // User isn't running Windows, but is running on .NET Core framework, no access to the DPAPI, so don't bother trying to migrate
                 return false;
@@ -295,9 +293,9 @@ namespace Jackett.Common.Indexers
             if (query.HasSpecifiedCategories)
                 if (!caps.SupportsCategories(query.Categories))
                     return false;
-            if (caps.SupportsImdbSearch && query.IsImdbQuery)
+            if (caps.SupportsImdbMovieSearch && query.IsImdbQuery)
                 return true;
-            else if (!caps.SupportsImdbSearch && query.IsImdbQuery && query.QueryType != "TorrentPotato") // potato query should always contain imdb+search term
+            else if (!caps.SupportsImdbMovieSearch && query.IsImdbQuery && query.QueryType != "TorrentPotato") // potato query should always contain imdb+search term
                 return false;
             if (caps.SearchAvailable && query.IsSearch)
                 return true;
@@ -309,7 +307,7 @@ namespace Jackett.Common.Indexers
                 return true;
             if (caps.SupportsTVRageSearch && query.IsTVRageSearch)
                 return true;
-            if (caps.SupportsImdbSearch && query.IsImdbQuery)
+            if (caps.SupportsImdbMovieSearch && query.IsImdbQuery)
                 return true;
 
             return false;

@@ -45,7 +45,7 @@ namespace Jackett.Common.Indexers
             Language = "de-de";
             Type = "private";
 
-            TorznabCaps.SupportsImdbSearch = true;
+            TorznabCaps.SupportsImdbMovieSearch = true;
 
             this.configData.DisplayText.Value = "Only the results from the first search result page are shown, adjust your profile settings to show the maximum.";
             this.configData.DisplayText.Name = "Notice";
@@ -151,9 +151,7 @@ namespace Jackett.Common.Indexers
                 {
                     // use AND+wildcard operator to avoid getting to many useless results
                     var searchStringArray = Regex.Split(searchString.Trim(), "[ _.-]+", RegexOptions.Compiled).ToList();
-                    searchStringArray = searchStringArray.Where(x => x.Length >= 3).ToList(); //  remove words with less than 3 characters
-                    searchStringArray = searchStringArray.Where(x => !new string[] { "der", "die", "das", "the" }.Contains(x.ToLower())).ToList(); //  remove words with less than 3 characters
-                    searchStringArray = searchStringArray.Select(x => "+" + x + "*").ToList(); // add AND operators+wildcards
+                    searchStringArray = searchStringArray.Select(x => "+" + x).ToList(); // add AND operators
                     var searchStringFinal = String.Join(" ", searchStringArray);
                     queryCollection.Add("search", searchStringFinal);
             }
@@ -187,7 +185,7 @@ namespace Jackett.Common.Indexers
 
                     var qRow = row.Cq();
 
-                    var catStr = row.ChildElements.ElementAt(0).FirstElementChild.GetAttribute("href").Split('=')[1];
+                    var catStr = row.ChildElements.ElementAt(0).FirstElementChild.GetAttribute("href").Split('=')[1].Split('&')[0];
                     release.Category = MapTrackerCatToNewznab(catStr);
 
                     var qLink = row.ChildElements.ElementAt(2).FirstElementChild.Cq();
@@ -221,8 +219,9 @@ namespace Jackett.Common.Indexers
                     if (imdbLink.Any())
                         release.Imdb = ParseUtil.GetLongFromString(imdbLink.Attr("href"));
 
-                    var sizeStr = row.ChildElements.ElementAt(5).Cq().Text();
-                    release.Size = ReleaseInfo.GetBytes(sizeStr);
+                    var sizeFileCountRowChilds = row.ChildElements.ElementAt(5).ChildElements;
+                    release.Size = ReleaseInfo.GetBytes(sizeFileCountRowChilds.ElementAt(0).Cq().Text());
+                    release.Files = ParseUtil.CoerceInt(sizeFileCountRowChilds.ElementAt(2).Cq().Text());
 
                     release.Seeders = ParseUtil.CoerceInt(row.ChildElements.ElementAt(7).Cq().Text());
                     release.Peers = ParseUtil.CoerceInt(row.ChildElements.ElementAt(8).Cq().Text()) + release.Seeders;

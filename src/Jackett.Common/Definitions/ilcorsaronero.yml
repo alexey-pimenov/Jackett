@@ -6,11 +6,13 @@
   type: public
   encoding: UTF-8
   links:
+    - https://ilcorsaronero.pizza/
+  legacylinks:
+    - https://ilcorsaronero.live/
+    - https://ilcorsaronero.vip/
     - https://ilcorsaronero.info/
-  certificates:
-    - aa7c40aa360a1cec8a9687312fd50402b912e618 # incomplete CA chain
-    - 83174ec1f92fa13cdef9d51888ea1dfba2166e17 # incomplete CA chain
-    - c414bf4ad6c69841693c147849f4c314aa200bdf # incomplete CA chain
+    - https://ilcorsaronero.ch/
+    - https://ilcorsaronero.cc/
 
   caps:
     categorymappings:
@@ -49,16 +51,12 @@
       # - path: "{{if .Keywords}}argh.php?search={{ .Keywords}}
       #      {{else}}/recenti
       #      {{end}}"
-      - path: "{{if .Keywords}}advsearch.php?&category={{range .Categories}}{{.}};{{end}}&search={{ .Keywords}}&order=data&by=DESC&page=0{{else}}/recenti{{end}}"
-      - path: "{{if .Keywords}}advsearch.php?&category={{range .Categories}}{{.}};{{end}}&search={{ .Keywords}}&order=data&by=DESC&page=1{{else}}/recenti{{end}}"
-      - path: "{{if .Keywords}}advsearch.php?&category={{range .Categories}}{{.}};{{end}}&search={{ .Keywords}}&order=data&by=DESC&page=2{{else}}/recenti{{end}}"
-      - path: "{{if .Keywords}}advsearch.php?&category={{range .Categories}}{{.}};{{end}}&search={{ .Keywords}}&order=data&by=DESC&page=3{{else}}/recenti{{end}}"
-      - path: "{{if .Keywords}}advsearch.php?&category={{range .Categories}}{{.}};{{end}}&search={{ .Keywords}}&order=data&by=DESC&page=4{{else}}/recenti{{end}}"
-      - path: "{{if .Keywords}}advsearch.php?&category={{range .Categories}}{{.}};{{end}}&search={{ .Keywords}}&order=data&by=DESC&page=5{{else}}/recenti{{end}}"
-      - path: "{{if .Keywords}}advsearch.php?&category={{range .Categories}}{{.}};{{end}}&search={{ .Keywords}}&order=data&by=DESC&page=6{{else}}/recenti{{end}}"
-      - path: "{{if .Keywords}}advsearch.php?&category={{range .Categories}}{{.}};{{end}}&search={{ .Keywords}}&order=data&by=DESC&page=7{{else}}/recenti{{end}}"
-      - path: "{{if .Keywords}}advsearch.php?&category={{range .Categories}}{{.}};{{end}}&search={{ .Keywords}}&order=data&by=DESC&page=8{{else}}/recenti{{end}}"
-      - path: "{{if .Keywords}}advsearch.php?&category={{range .Categories}}{{.}};{{end}}&search={{ .Keywords}}&order=data&by=DESC&page=9{{else}}/recenti{{end}}"
+      - path: "{{if .Keywords}}advsearch.php?&category={{range .Categories}}{{.}};{{end}}&search={{ .Keywords}}&order=data&by=DESC&page=0{{else}}/browse/0{{end}}"
+      - path: "{{if .Keywords}}advsearch.php?&category={{range .Categories}}{{.}};{{end}}&search={{ .Keywords}}&order=data&by=DESC&page=1{{else}}/browse/1{{end}}"
+      - path: "{{if .Keywords}}advsearch.php?&category={{range .Categories}}{{.}};{{end}}&search={{ .Keywords}}&order=data&by=DESC&page=2{{else}}/browse/2{{end}}"
+      - path: "{{if .Keywords}}advsearch.php?&category={{range .Categories}}{{.}};{{end}}&search={{ .Keywords}}&order=data&by=DESC&page=3{{else}}/browse/3{{end}}"
+      - path: "{{if .Keywords}}advsearch.php?&category={{range .Categories}}{{.}};{{end}}&search={{ .Keywords}}&order=data&by=DESC&page=4{{else}}/browse/4{{end}}"
+      - path: "{{if .Keywords}}advsearch.php?&category={{range .Categories}}{{.}};{{end}}&search={{ .Keywords}}&order=data&by=DESC&page=5{{else}}/browse/5{{end}}"
     keywordsfilters:
       - name: diacritics
         args: replace
@@ -125,7 +123,7 @@
           - name: prepend
             args: "magnet:?xt=urn:btih:"
           - name: append
-            args: "&dn={{ .Result.title }}.torrent"
+            args: "&dn={{ .Result.title }}.torrent&tr=udp://tracker.coppersurfer.tk:6969&tr=udp://tracker.leechers-paradise.org:6969&tr=udp://tracker.opentrackr.org:1337"
       size:
         selector: td:nth-child(3) font
       date:
