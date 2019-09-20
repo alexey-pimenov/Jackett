@@ -23,19 +23,21 @@ Developer note: The software implements the [Torznab](https://github.com/Sonarr/
 ### Supported Public Trackers
  * 1337x
  * ACG.RIP
+ * ACGsou
  * Anidex
  * Anime Tosho
  * AniRena
  * AudioBook Bay (ABB)
  * btbit
  * BTDB
- * BTDigg
  * BTKitty
  * ConCen
+ * Corsaro.red
  * cpasbien
  * cpasbienClone
  * Demonoid
  * DIGBT
+ * dmhy
  * ETTV
  * EliteTorrent.biz
  * ExtraTorrent.ag
@@ -53,20 +55,20 @@ Developer note: The software implements the [Torznab](https://github.com/Sonarr/
  * KickAssTorrent (KATcr)
  * KickAssTorrent (thekat.se clone)
  * KikiBT
+ * LemenCili
  * LePorno
  * LimeTorrents
  * MacTorrents
  * MagnetDL
  * MejorTorrent <!-- maintained by ivandelabeldad -->
- * MkvCage
  * Monova
  * MovCr
  * Newpct (aka: tvsinpagar, descargas2020, torrentlocura, torrentrapid, tumejortorrent, pctnew, etc)
+ * Nitro
  * Nyaa.si
  * Nyaa-Pantsu
  * OxTorrent
  * ProStyleX
- * QXR
  * RARBG
  * RuTor
  * shokweb
@@ -75,8 +77,8 @@ Developer note: The software implements the [Torznab](https://github.com/Sonarr/
  * SolidTorrents
  * sukebei.Nyaa.si
  * sukebei-Pantsu
+ * TFile
  * The Pirate Bay (TPB)
- * TNTVillage <!-- maintained by bonny1992 -->
  * Tokyo Tosho
  * Torlock
  * Torrent Downloads (TD)
@@ -86,20 +88,21 @@ Developer note: The software implements the [Torznab](https://github.com/Sonarr/
  * TorrentProject2
  * TorrentQuest
  * Torrents.csv
+ * TorrentWal
  * Torrent9
  * Torernt9 clone (torrents9.ch)
  * Torrentz2
- * World Wide Torrents
  * YourBittorrent
  * YTS.ag
  * Zooqle
 
 ### Supported Semi-Private Trackers
- * 7tor
  * Alein
+ * AlexFilm
  * AniDUB
  * ArenaBG
  * BaibaKo
+ * BookTracker
  * Crazy's Corner
  * CzTorrent
  * Deildu
@@ -110,6 +113,7 @@ Developer note: The software implements the [Torznab](https://github.com/Sonarr/
  * HamsterStudio
  * Kinozal
  * LostFilm.tv
+ * Marine Tracker
  * Metal Tracker
  * MVGroup Forum
  * MVGroup Main
@@ -123,6 +127,7 @@ Developer note: The software implements the [Torznab](https://github.com/Sonarr/
  * SoundPark
  * Toloka.to
  * Torrents-Local
+ * Underverse
  * Union Fansub
  * Vanila
  * YggTorrent (YGG)
@@ -191,6 +196,7 @@ Developer note: The software implements the [Torznab](https://github.com/Sonarr/
  * Cinematik
  * CinemaZ (EuTorrents)
  * Classix
+ * CrazyHD
  * CrazySpirits
  * CrnaBerza
  * DanishBits (DB)
@@ -230,7 +236,6 @@ Developer note: The software implements the [Torznab](https://github.com/Sonarr/
  * GAYtorrent.ru
  * GazelleGames (GGn)
  * Generation-Free
- * GFXNews
  * GFXPeers
  * GigaTorrents
  * GimmePeers (formerly ILT) <!-- maintained by jamesb2147 -->
@@ -262,6 +267,7 @@ Developer note: The software implements the [Torznab](https://github.com/Sonarr/
  * ICE Torrent
  * iLoveClassics (iLC)
  * ImmortalSeed (iS)
+ * Immortuos
  * inPeril
  * Insane Tracker
  * IPTorrents (IPT)
@@ -278,16 +284,16 @@ Developer note: The software implements the [Torznab](https://github.com/Sonarr/
  * M-Team TP (MTTP)
  * Magico (Trellas)
  * Majomparádé (TurkDepo)
- * Mega-Bliz
  * Mononoké-BT
  * MoreThanTV (MTV)
  * Music-Master
  * MyAnonamouse (MAM)
  * myAmity
  * MySpleen
- * NCore
  * NBTorrents
+ * NCore
  * Nebulance (NBL) (TransmiTheNet)
+ * NetLab
  * New Real World
  * Norbits
  * NordicBits (NB)
@@ -318,6 +324,7 @@ Developer note: The software implements the [Torznab](https://github.com/Sonarr/
  * R3V WTF!
  * Racing4Everyone (R4E)
  * RacingForMe (RFM)
+ * RainbowNation Sharing (RNS)
  * Redacted (PassTheHeadphones)
  * Red Star Torrent (RST)
  * RetroFlix
@@ -367,7 +374,6 @@ Developer note: The software implements the [Torznab](https://github.com/Sonarr/
  * The Show
  * The-Torrents
  * The Vault
- * Tigers-dl
  * Torrent Network (TN)
  * Torrent Sector Crew (TSC)
  * Torrent.LT
@@ -406,7 +412,6 @@ Developer note: The software implements the [Torznab](https://github.com/Sonarr/
  * x-ite.me (XM)
  * xBytesV2
  * XSpeeds (XS)
- * XKTorrent
  * XWTorrents (XWT)
  * Xthor
  * XtremeFile
