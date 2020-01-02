@@ -24,10 +24,11 @@ namespace Jackett.Common.Indexers
     /// </summary>
     public class Xthor : BaseCachingWebIndexer
     {
-        private static string ApiEndpoint => "https://api.xthor.to/";
+        private static string ApiEndpoint => "https://api.xthor.tk/";
 
         public override string[] LegacySiteLinks { get; protected set; } = new string[] {
             "https://xthor.bz/",
+            "https://xthor.to",
         };
 
         private string TorrentCommentUrl => TorrentDescriptionUrl;
@@ -44,13 +45,13 @@ namespace Jackett.Common.Indexers
             : base(
                 name: "Xthor",
                 description: "General French Private Tracker",
-                link: "https://xthor.to/",
+                link: "https://xthor.tk/",
                 caps: new TorznabCapabilities(),
                 configService: configService,
                 client: w,
                 logger: l,
                 p: ps,
-                downloadBase: "https://xthor.to/download.php?torrent=",
+                downloadBase: "https://xthor.tk/download.php?torrent=",
                 configData: new ConfigurationDataXthor())
         {
             Encoding = Encoding.UTF8;
@@ -80,7 +81,7 @@ namespace Jackett.Common.Indexers
             AddCategoryMapping(33,  TorznabCatType.MoviesOther,     "SPECTACLE");
             AddCategoryMapping(31,  TorznabCatType.MoviesOther,     "ANIMATION");
             AddCategoryMapping(9,   TorznabCatType.MoviesOther,     "VOSTFR");
-            
+
             // Series
             AddCategoryMapping(104, TorznabCatType.TVOTHER,         "BLURAY");
             AddCategoryMapping(13,  TorznabCatType.TVOTHER,         "PACK VF");
@@ -99,7 +100,7 @@ namespace Jackett.Common.Indexers
 
             // Music
             AddCategoryMapping(20,  TorznabCatType.AudioVideo,      "CONCERT");
-            
+
             // Books
             AddCategoryMapping(24,  TorznabCatType.BooksEbook,      "ENOOKS NOVEL");
             AddCategoryMapping(96,  TorznabCatType.BooksMagazines,  "EBOOKS MAGAZINES");
@@ -181,7 +182,7 @@ namespace Jackett.Common.Indexers
             searchTerm = searchTerm.Trim();
             searchTerm = searchTerm.ToLower();
 
-            if (EnhancedAnime && query.HasSpecifiedCategories && query.Categories.Contains(TorznabCatType.TVAnime.ID))
+            if (EnhancedAnime && query.HasSpecifiedCategories && (query.Categories.Contains(TorznabCatType.TVAnime.ID) || query.Categories.Contains(100032) || query.Categories.Contains(100101) || query.Categories.Contains(100110)))
             {
                 System.Text.RegularExpressions.Regex regex = new Regex(" ([0-9]+)");
                 searchTerm = regex.Replace(searchTerm, " E$1");
@@ -223,9 +224,10 @@ namespace Jackett.Common.Indexers
                     releases.AddRange(xthorResponse.torrents.Select(torrent =>
                     {
                         //issue #3847 replace multi keyword
-                        if(!string.IsNullOrEmpty(ReplaceMulti)){
+                        if (!string.IsNullOrEmpty(ReplaceMulti))
+                        {
                             System.Text.RegularExpressions.Regex regex = new Regex("(?i)([\\.\\- ])MULTI([\\.\\- ])");
-                            torrent.name = regex.Replace(torrent.name, "$1"+ReplaceMulti+"$2");
+                            torrent.name = regex.Replace(torrent.name, "$1" + ReplaceMulti + "$2");
                         }
 
                         var release = new ReleaseInfo
@@ -365,6 +367,11 @@ namespace Jackett.Common.Indexers
             if (ConfigData.Freeleech.Value)
             {
                 parameters.Add("freeleech", "1");
+            }
+
+            if (!string.IsNullOrEmpty(ConfigData.Accent.Value))
+            {
+                parameters.Add("accent", ConfigData.Accent.Value);
             }
 
             // Building our query -- Cannot use GetQueryString due to UrlEncode (generating wrong category param)
@@ -631,6 +638,14 @@ namespace Jackett.Common.Indexers
                 Output("Validated Setting -- PassKey (auth) => " + ConfigData.PassKey.Value);
             }
 
+            if (!string.IsNullOrEmpty(ConfigData.Accent.Value) && !string.Equals(ConfigData.Accent.Value, "1") && !string.Equals(ConfigData.Accent.Value, "2"))
+            {
+                throw new ExceptionWithConfigData("Only '1' or '2' are available in the Accent parameter.", ConfigData);
+            }
+            else
+            {
+                Output("Validated Setting -- Accent (audio) => " + ConfigData.Accent.Value);
+            }
             // Check Dev Cache Settings
             if (ConfigData.HardDriveCache.Value)
             {
