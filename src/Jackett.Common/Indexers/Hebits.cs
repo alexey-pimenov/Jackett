@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -102,7 +102,7 @@ namespace Jackett.Common.Indexers
             {
                 CQ dom = response.Content;
 
-                CQ qRows = dom[".browse > div > div"];
+                var qRows = dom[".browse > div > div"];
 
                 foreach (var row in qRows)
                 {
@@ -113,7 +113,7 @@ namespace Jackett.Common.Indexers
                     var debug = qRow.Html();
 
                     release.MinimumRatio = 1;
-                    release.MinimumSeedTime = 172800;
+                    release.MinimumSeedTime = 172800; // 48 hours
 
                     var qTitle = qRow.Find(".bTitle");
                     var titleParts = qTitle.Text().Split('/');

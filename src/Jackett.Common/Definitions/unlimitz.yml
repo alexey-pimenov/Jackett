@@ -99,6 +99,7 @@
 
   download:
     selector:  a[href^="d.php?keyalert1="]
+    attribute: href
     filters:
       - name: replace
         args: ["d.php?keyalert1=", "/dI.php/"]
@@ -163,3 +164,4 @@
           img[src="icon/upl2.png"]: 2
           img[src="icon/upl3.png"]: 3
           "*": 1
+# Bitcomet 1.52

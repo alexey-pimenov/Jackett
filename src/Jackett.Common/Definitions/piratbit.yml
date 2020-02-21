@@ -626,6 +626,7 @@
 
   download:
     selector: a[href^="magnet:?xt="]
+    attribute: href
 
   search:
     paths:
@@ -668,7 +669,7 @@
           - name: querystring
             args: f
       title:
-        selector: td a.genmed b
+        selector: td a.genmed
       details:
         selector: td a.genmed
         attribute: href
@@ -703,3 +704,4 @@
         text: 0
       uploadvolumefactor:
         text: 1
+# engine n/a

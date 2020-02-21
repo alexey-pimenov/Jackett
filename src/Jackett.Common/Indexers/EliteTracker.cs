@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -6,9 +6,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using AngleSharp.Html.Parser;
-using Jackett.Common.Models.IndexerConfig.Bespoke;
 using Jackett.Common.Models;
-using Jackett.Common.Models.IndexerConfig;
+using Jackett.Common.Models.IndexerConfig.Bespoke;
 using Jackett.Common.Services.Interfaces;
 using Jackett.Common.Utils;
 using Jackett.Common.Utils.Clients;
@@ -267,8 +266,13 @@ namespace Jackett.Common.Indexers
                     //issue #5064 replace multi keyword
                     if (!string.IsNullOrEmpty(ReplaceMulti))
                     {
-                        System.Text.RegularExpressions.Regex regex = new Regex("(?i)([\\.\\- ])MULTI([\\.\\- ])");
+                        var regex = new Regex("(?i)([\\.\\- ])MULTI([\\.\\- ])");
                         release.Title = regex.Replace(release.Title, "$1" + ReplaceMulti + "$2");
+                    }
+                    // issue #6855 Replace VOSTFR with ENGLISH
+                    if (configData.Vostfr.Value)
+                    {
+                        release.Title = release.Title.Replace("VOSTFR", "ENGLISH");
                     }
 
                     if (pretime != null)

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Jackett.Common.Models;
@@ -20,11 +21,12 @@ namespace Jackett.Common.Indexers
         private string SearchUrl { get { return SiteLink + "api/v1/torrents"; } }
         private string LoginUrl { get { return SiteLink + "api/v1/auth"; } }
 
-        private new ConfigurationDataBasicLogin configData
+        private new ConfigurationDataCookie configData
         {
-            get { return (ConfigurationDataBasicLogin)base.configData; }
+            get { return (ConfigurationDataCookie)base.configData; }
             set { base.configData = value; }
         }
+
 
         public Digitalcore(IIndexerConfigurationService configService, WebClient w, Logger l, IProtectionService ps)
             : base(name: "DigitalCore",
@@ -35,7 +37,7 @@ namespace Jackett.Common.Indexers
                 client: w,
                 logger: l,
                 p: ps,
-                configData: new ConfigurationDataBasicLogin())
+                configData: new ConfigurationDataCookie())
         {
             Encoding = Encoding.UTF8;
             Language = "en-us";
@@ -71,7 +73,7 @@ namespace Jackett.Common.Indexers
             AddCategoryMapping(25, TorznabCatType.PCGames, "Games/PC");
             AddCategoryMapping(26, TorznabCatType.Console, "Games/NSW");
             AddCategoryMapping(27, TorznabCatType.PCMac, "Games/Mac");
-            
+
             AddCategoryMapping(28, TorznabCatType.Books, "Ebooks");
 
             AddCategoryMapping(30, TorznabCatType.XXX, "XXX/SD");
@@ -83,24 +85,31 @@ namespace Jackett.Common.Indexers
         public override async Task<IndexerConfigurationStatus> ApplyConfiguration(JToken configJson)
         {
             LoadValuesFromJson(configJson);
-            var queryCollection = new NameValueCollection();
 
-            queryCollection.Add("username", configData.Username.Value);
-            queryCollection.Add("password", configData.Password.Value);
-
-            var loginUrl = LoginUrl + "?" + queryCollection.GetQueryString();
-            var loginResult = await RequestStringWithCookies(loginUrl, null, SiteLink);
-
-            await ConfigureIfOK(loginResult.Cookies, loginResult.Content.Contains("\"user\""), () =>
+            // TODO: implement captcha
+            CookieHeader = configData.Cookie.Value;
+            try
             {
-                throw new ExceptionWithConfigData(loginResult.Content, configData);
-            });
-            return IndexerConfigurationStatus.RequiresTesting;
+                var results = await PerformQuery(new TorznabQuery());
+                if (results.Count() == 0)
+                {
+                    throw new Exception("Your cookie did not work");
+                }
+
+                IsConfigured = true;
+                SaveConfig();
+                return IndexerConfigurationStatus.Completed;
+            }
+            catch (Exception e)
+            {
+                IsConfigured = false;
+                throw new Exception("Your cookie did not work: " + e.Message);
+            }
         }
 
         protected override async Task<IEnumerable<ReleaseInfo>> PerformQuery(TorznabQuery query)
         {
-            List<ReleaseInfo> releases = new List<ReleaseInfo>();
+            var releases = new List<ReleaseInfo>();
             var queryCollection = new NameValueCollection();
             var searchString = query.GetQueryString();
             var searchUrl = SearchUrl;
@@ -136,7 +145,7 @@ namespace Jackett.Common.Indexers
                     var tags = new List<string>();
 
                     release.MinimumRatio = 1.1;
-                    release.MinimumSeedTime = 48 * 60 * 60;
+                    release.MinimumSeedTime = 172800; // 48 hours
                     release.Title = row.name;
                     release.Category = MapTrackerCatToNewznab(row.category.ToString());
                     release.Size = row.size;
@@ -162,6 +171,7 @@ namespace Jackett.Common.Indexers
                         release.BannerUrl = (row.firstpic);
                     }
 
+
                     if (row.imdbid2 != null && row.imdbid2.ToString().StartsWith("tt"))
                     {
                         release.Imdb = ParseUtil.CoerceLong(row.imdbid2.ToString().Substring(2));
@@ -171,6 +181,8 @@ namespace Jackett.Common.Indexers
                         descriptions.Add("Tagline: " + row.tagline);
                         descriptions.Add("Cast: " + row.cast);
                         descriptions.Add("Rating: " + row.rating);
+                        //descriptions.Add("Plot: " + row.plot);
+
                         release.BannerUrl = new Uri(SiteLink + "img/imdb/" + row.imdbid2 + ".jpg");
                     }
 

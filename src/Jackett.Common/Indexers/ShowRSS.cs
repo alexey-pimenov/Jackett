@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -24,7 +24,7 @@ namespace Jackett.Common.Indexers
 
         private new ConfigurationData configData
         {
-            get { return (ConfigurationData)base.configData; }
+            get { return base.configData; }
             set { base.configData = value; }
         }
 
@@ -80,7 +80,7 @@ namespace Jackett.Common.Indexers
                     release = new ReleaseInfo();
 
                     release.MinimumRatio = 1;
-                    release.MinimumSeedTime = 172800;
+                    release.MinimumSeedTime = 172800; // 48 hours
 
                     serie_title = node.SelectSingleNode(".//*[local-name()='raw_title']").InnerText;
                     release.Title = serie_title;
@@ -91,7 +91,7 @@ namespace Jackett.Common.Indexers
                     release.Comments = new Uri(node.SelectSingleNode("link").InnerText);
 
                     // Try to guess the category... I'm not proud of myself...
-                    int category = 5030;
+                    var category = 5030;
                     if (serie_title.Contains("720p"))
                         category = 5040;
                     release.Category = new List<int> { category };

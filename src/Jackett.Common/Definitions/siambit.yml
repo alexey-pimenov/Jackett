@@ -103,6 +103,7 @@
         _action: "say_thank"
         id: "{{ .DownloadUri.Query.id }}"
     selector: a[href^="downloadnew.php?id="]
+    attribute: href
 
   search:
     paths:
@@ -190,3 +191,4 @@
           "td:nth-child(4):contains(\"x8\")": 8
           "td:nth-child(4):contains(\"x9\")": 9
           "*": 1
+# engine n/a

@@ -42,6 +42,10 @@
 
   download:
     selector: a.linktorrent
+    attribute: href
+    filters:
+      - name: replace
+        args: ["https://www.estrenosdtl1.net/", "{{ .Config.sitelink }}"]
 
   search:
     paths:
@@ -72,7 +76,10 @@
           - name: dateparse
             args: "02-01-2006"
       size:
+        text: "0 B"
+      size:
         selector: div.tamanio p
+        optional: true
       seeders:
         text: 1
       leechers:
@@ -81,3 +88,4 @@
         text: 0
       uploadvolumefactor:
         text: 1
+# engine n/a

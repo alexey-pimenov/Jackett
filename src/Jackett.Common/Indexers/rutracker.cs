@@ -69,8 +69,13 @@ namespace Jackett.Common.Indexers
             AddCategoryMapping(2091, TorznabCatType.MoviesForeign, " | - Movies 2001-2005");
             AddCategoryMapping(2092, TorznabCatType.MoviesForeign, " | - Movies 2006-2010");
             AddCategoryMapping(2093, TorznabCatType.MoviesForeign, " | - Movies 2011-2015");
+<<<<<<< HEAD
             AddCategoryMapping(2200, TorznabCatType.MoviesForeign, " | - Movies 2016-2017");
             AddCategoryMapping(1950, TorznabCatType.MoviesForeign, " | - Movies 2018");
+=======
+            AddCategoryMapping(2200, TorznabCatType.MoviesForeign, " | - Movies 2016-2018");
+            AddCategoryMapping(1950, TorznabCatType.MoviesForeign, " | - Movies 2019");
+>>>>>>> 3ecdbfe7f42010a70629e431a3c2a93d275bb4fc
             AddCategoryMapping(934, TorznabCatType.MoviesForeign, " | - Asian movies");
             AddCategoryMapping(505, TorznabCatType.MoviesForeign, " | - Indian Cinema");
             AddCategoryMapping(212, TorznabCatType.MoviesForeign, " | - Movie Collections");
@@ -1532,7 +1537,7 @@ namespace Jackett.Common.Indexers
             }
             try
             {
-                string RowsSelector = "table#tor-tbl > tbody > tr";
+                var RowsSelector = "table#tor-tbl > tbody > tr";
 
                 var SearchResultParser = new HtmlParser();
                 var SearchResultDocument = SearchResultParser.ParseDocument(results.Content);
@@ -1600,9 +1605,9 @@ namespace Jackett.Common.Indexers
                         }
                         else if (configData.StripRussianLetters.Value)
                         {
-                            if (release.Category.Contains(TorznabCatType.Movies.ID) || 
-                                release.Category.Contains(TorznabCatType.MoviesHD.ID) || 
-                                release.Category.Contains(TorznabCatType.Movies3D.ID) || 
+                            if (release.Category.Contains(TorznabCatType.Movies.ID) ||
+                                release.Category.Contains(TorznabCatType.MoviesHD.ID) ||
+                                release.Category.Contains(TorznabCatType.Movies3D.ID) ||
                                 release.Category.Contains(TorznabCatType.MoviesForeign.ID))
                             {
                                 // remove director's name from title
@@ -1611,7 +1616,7 @@ namespace Jackett.Common.Indexers
                                 // this part should be removed: (Мартин Скорсезе / Martin Scorsese)
                                 var director = new Regex(@"(\([А-Яа-яЁё\W]+)\s/\s(.+?)\)");
                                 release.Title = director.Replace(release.Title, "");
-                                
+
                                 // Bluray quality fix: radarr parse Blu-ray Disc as Bluray-1080p but should be BR-DISK
                                 release.Title = Regex.Replace(release.Title, "Blu-ray Disc", "BR-DISK", RegexOptions.IgnoreCase);
                                 // language fix: all rutracker releases contains russian track

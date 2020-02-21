@@ -1,4 +1,6 @@
-﻿using Autofac;
+﻿using System.Linq;
+using System.Text;
+using Autofac;
 using AutoMapper;
 using Jackett.Common.Models;
 using Jackett.Common.Models.Config;
@@ -6,8 +8,6 @@ using Jackett.Common.Services.Interfaces;
 using Jackett.Common.Utils.Clients;
 using Microsoft.AspNetCore.Hosting;
 using NLog;
-using System.Linq;
-using System.Text;
 #if !NET461
 using Microsoft.Extensions.Hosting;
 #endif
@@ -136,7 +136,7 @@ namespace Jackett.Server
 
         public static void SetupLogging(ContainerBuilder builder)
         {
-            Logger logger = LogManager.GetCurrentClassLogger();
+            var logger = LogManager.GetCurrentClassLogger();
 
             if (builder != null)
             {

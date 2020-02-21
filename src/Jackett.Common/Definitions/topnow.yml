@@ -6,6 +6,8 @@
   type: public
   encoding: UTF-8
   links:
+    - https://topnow.se/
+  legacylinks:
     - http://topnow.se/
 
   caps:
@@ -21,6 +23,8 @@
 
   download:
     selector: a#torrent
+    attribute: href
+
   search:
     paths:
     # http://topnow.se/search.php?dayq=mandalorian
@@ -60,3 +64,4 @@
         text: 0
       uploadvolumefactor:
         text: 1
+# Engine n/a

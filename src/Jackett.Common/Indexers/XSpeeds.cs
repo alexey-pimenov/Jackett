@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -14,7 +14,6 @@ using Jackett.Common.Utils.Clients;
 using Newtonsoft.Json.Linq;
 using NLog;
 using static Jackett.Common.Models.IndexerConfig.ConfigurationData;
-using static Jackett.Common.Utils.ParseUtil;
 
 namespace Jackett.Common.Indexers
 {
@@ -138,7 +137,7 @@ namespace Jackett.Common.Indexers
         {
             var loginPage = await RequestStringWithCookies(LandingUrl);
             CQ dom = loginPage.Content;
-            CQ qCaptchaImg = dom.Find("img#regimage").First();
+            var qCaptchaImg = dom.Find("img#regimage").First();
             if (qCaptchaImg.Length > 0)
             {
                 var CaptchaUrl = qCaptchaImg.Attr("src");

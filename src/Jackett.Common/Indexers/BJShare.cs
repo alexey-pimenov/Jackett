@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Globalization;
@@ -30,7 +30,7 @@ namespace Jackett.Common.Indexers
             { "tell me a story us", "Tell Me a Story"},
             { "greys anatomy", "grey's anatomy"}
         };
-        
+
         private readonly Dictionary<string, string> _commonResultTerms = new Dictionary<string, string>
         {
             { "tell me a story", "Tell Me a Story US"},
@@ -38,12 +38,12 @@ namespace Jackett.Common.Indexers
             { "agents of s.h.i.e.l.d.", "Marvels Agents of SHIELD"},
             { "legends of tomorrow", "DCs Legends of Tomorrow"}
         };
-        
+
         private readonly List<string> _absoluteNumbering = new List<string>
         {
             "One Piece", "Boruto", "Black Clover", "Fairy Tail", "Super Dragon Ball Heroes"
         };
-        
+
         public override string[] LegacySiteLinks { get; protected set; } = new string[] {
             "https://bj-share.me/"
         };
@@ -118,7 +118,7 @@ namespace Jackett.Common.Indexers
         private string InternationalTitle(string title)
         {
             // Get international title if available, or use the full title if not
-            string cleanTitle = Regex.Replace(title, @".* \[(.*?)\](.*)", "$1$2");
+            var cleanTitle = Regex.Replace(title, @".* \[(.*?)\](.*)", "$1$2");
             cleanTitle = Regex.Replace(cleanTitle, @"(?:.*)\/(.*)", "$1");
 
             return cleanTitle.Trim();
@@ -158,7 +158,7 @@ namespace Jackett.Common.Indexers
             // until they or the source from where they get that info fix it...
 
             if (IsAbsoluteNumbering(title))
-            { 
+            {
                 title = Regex.Replace(title, @"(Ep[\.]?[ ]?)|([S]\d\d[Ee])", "");
                 return title;
             }
@@ -171,14 +171,14 @@ namespace Jackett.Common.Indexers
             }
             else
             {
-              return title;
+                return title;
             }
         }
 
         protected override async Task<IEnumerable<ReleaseInfo>> PerformQuery(TorznabQuery query)
         {
             query = query.Clone(); // avoid modifing the original query
-            
+
             var releases = new List<ReleaseInfo>();
 
             // if the search string is empty use the "last 24h torrents" view
@@ -231,7 +231,8 @@ namespace Jackett.Common.Indexers
                                 var line = child.TextContent;
                                 if (line.StartsWith("Tamanho:"))
                                 {
-                                    var size = line.Substring("Tamanho: ".Length); ;
+                                    var size = line.Substring("Tamanho: ".Length);
+                                    ;
                                     release.Size = ReleaseInfo.GetBytes(size);
                                 }
                                 else if (line.StartsWith("Lançado em: "))
@@ -243,7 +244,8 @@ namespace Jackett.Common.Indexers
                                 }
                                 else if (line.StartsWith("Ano:"))
                                 {
-                                    year = line.Substring("Ano: ".Length); ;
+                                    year = line.Substring("Ano: ".Length);
+                                    ;
 
                                 }
                                 else
@@ -255,7 +257,7 @@ namespace Jackett.Common.Indexers
                             var catStr = qCatLink.GetAttribute("href").Split('=')[1];
                             release.Title = FixAbsoluteNumbering(release.Title);
 
-                            if(year != "")
+                            if (year != "")
                             {
                                 release.Title += " " + year;
                             }
@@ -407,7 +409,7 @@ namespace Jackett.Common.Indexers
                                 var cleanTitle = Regex.Replace(groupTitle, @" - ((S(\d{2}))?E(\d{1,4}))", "");
                                 // Get international title if available, or use the full title if not
                                 cleanTitle = InternationalTitle(cleanTitle);
-                                
+
                                 foreach (var resultTerm in _commonResultTerms)
                                 {
                                     var newTitle = cleanTitle.ToLower().Replace(resultTerm.Key.ToLower(), resultTerm.Value);
@@ -416,7 +418,7 @@ namespace Jackett.Common.Indexers
                                         cleanTitle = newTitle;
                                     }
                                 }
-                                
+
                                 title = Regex.Replace(title.Trim(), @"\s+", " ");
                                 var seasonEp = Regex.Replace(title, @"((S\d{2})?(E\d{2,4})?) .*", "$1");
                                 if (seasonEp[0] == '[')
@@ -442,7 +444,7 @@ namespace Jackett.Common.Indexers
                                 var cleanTitle = Regex.Replace(title, @" - ((S\d{2})?(E\d{2,4})?)", "");
                                 // Get international title if available, or use the full title if not
                                 cleanTitle = InternationalTitle(cleanTitle);
-                                
+
                                 foreach (var resultTerm in _commonResultTerms)
                                 {
                                     var newTitle = cleanTitle.ToLower().Replace(resultTerm.Key.ToLower(), resultTerm.Value);
@@ -451,7 +453,7 @@ namespace Jackett.Common.Indexers
                                         cleanTitle = newTitle;
                                     }
                                 }
-                                
+
                                 var seasonEp = Regex.Replace(title, @"^(.*?) - ((S\d{2})?(E\d{2,4})?)", "$2");
                                 if (seasonEp[0] == '[')
                                     seasonEp = "";
@@ -484,7 +486,7 @@ namespace Jackett.Common.Indexers
                             release.Description = release.Description.Replace("SD", "480p");
                             release.Description = release.Description.Replace("Dual Áudio", "Dual");
                             // If it ain't nacional there will be the type of the audio / original audio
-                            if(release.Description.IndexOf("Nacional") == -1)
+                            if (release.Description.IndexOf("Nacional") == -1)
                             {
                                 release.Description = Regex.Replace(release.Description, @"(Dual|Legendado|Dublado) \/ (.*?) \/", "$1 /");
                             }
@@ -492,15 +494,15 @@ namespace Jackett.Common.Indexers
                             // Adjust the description in order to can be read by Radarr and Sonarr
 
                             var cleanDescription = release.Description.Trim().TrimStart('[').TrimEnd(']');
-                            String[] titleElements;
-                            
+                            string[] titleElements;
+
                             //Formats the title so it can be parsed later
-                            string[] stringSeparators = new string[] { " / " };
+                            var stringSeparators = new string[] { " / " };
                             titleElements = cleanDescription.Split(stringSeparators, StringSplitOptions.None);
                             // release.Title += string.Join(" ", titleElements);
                             release.Title = release.Title.Trim();
 
-                            release.Title += " " + titleElements[5] + " " + titleElements[3] + " " + titleElements[1] + " " + titleElements[2] + " " + titleElements[4] + " " + String.Join(" ", titleElements.Skip(6).Take(titleElements.Length - 6).ToArray());
+                            release.Title += " " + titleElements[5] + " " + titleElements[3] + " " + titleElements[1] + " " + titleElements[2] + " " + titleElements[4] + " " + string.Join(" ", titleElements.Skip(6).Take(titleElements.Length - 6).ToArray());
 
                             // This tracker does not provide an publish date to search terms (only on last 24h page)
                             release.PublishDate = DateTime.Today;

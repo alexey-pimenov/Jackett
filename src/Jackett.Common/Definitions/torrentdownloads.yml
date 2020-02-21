@@ -36,6 +36,7 @@
 
   download:
     selector: a[href^="{{ .Config.downloadlink }}"]
+    attribute: href
 
   search:
     paths:
@@ -74,3 +75,4 @@
         text: 0
       uploadvolumefactor:
         text: 1
+# engine n/a
