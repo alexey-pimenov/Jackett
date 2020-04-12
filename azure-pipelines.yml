@@ -35,41 +35,6 @@ stages:
             runtime: linux-x64
             archiveType: tar
             artifactName: Jackett.Binaries.Mono.tar.gz
-          Windows:
-            buildDescription: Windows
-            imageName: windows-latest
-            framework: $(netCoreFramework)
-            runtime: win-x86
-            archiveType: zip
-            artifactName: Jackett.Binaries.Windows.zip
-          macOS:
-            buildDescription: macOS
-            imageName: macOS-latest
-            framework: $(netCoreFramework)
-            runtime: osx-x64
-            archiveType: tar
-            artifactName: Jackett.Binaries.macOS.tar.gz
-          LinuxAmdx64:
-            buildDescription: Linux AMD x64
-            imageName: ubuntu-latest
-            framework: $(netCoreFramework)
-            runtime: linux-x64
-            archiveType: tar
-            artifactName: Jackett.Binaries.LinuxAMDx64.tar.gz
-          LinuxARM32:
-            buildDescription: Linux ARM32
-            imageName: ubuntu-latest
-            framework: $(netCoreFramework)
-            runtime: linux-arm
-            archiveType: tar
-            artifactName: Jackett.Binaries.LinuxARM32.tar.gz
-          LinuxARM64:
-            buildDescription: Linux ARM64
-            imageName: ubuntu-latest
-            framework: $(netCoreFramework)
-            runtime: linux-arm64
-            archiveType: tar
-            artifactName: Jackett.Binaries.LinuxARM64.tar.gz
       pool:
         vmImage: $(imageName)
       displayName: ${{ variables.buildDescription }}
@@ -311,31 +276,6 @@ stages:
             imageName: ubuntu-latest
             framework: net461
             runtime: linux-x64
-          Windows:
-            buildDescription: Windows
-            imageName: windows-latest
-            framework: $(netCoreFramework)
-            runtime: win-x86
-          macOS:
-            buildDescription: macOS
-            imageName: macOS-latest
-            framework: $(netCoreFramework)
-            runtime: osx-x64
-          LinuxAmdx64:
-            buildDescription: Linux AMD x64
-            imageName: ubuntu-latest
-            framework: $(netCoreFramework)
-            runtime: linux-x64
-          LinuxARM32:
-            buildDescription: Linux ARM32
-            imageName: ubuntu-latest
-            framework: $(netCoreFramework)
-            runtime: linux-arm
-          LinuxARM64:
-            buildDescription: Linux ARM64
-            imageName: ubuntu-latest
-            framework: $(netCoreFramework)
-            runtime: linux-arm64
       pool:
         vmImage: $(imageName)
       displayName: ${{ variables.buildDescription }}
@@ -410,19 +350,6 @@ stages:
             buildDescription: Mono
             imageName: ubuntu-latest
             artifactName: Jackett.Binaries.Mono.tar.gz
-          Windows:
-            buildDescription: Windows
-            imageName: windows-latest
-            artifactName: Jackett.Binaries.Windows.zip
-          macOS:
-            buildDescription: macOS
-            imageName: macOS-latest
-            artifactName: Jackett.Binaries.macOS.tar.gz
-          LinuxAmdx64:
-            buildDescription: Linux AMD x64
-            imageName: ubuntu-latest
-            artifactName: Jackett.Binaries.LinuxAMDx64.tar.gz
-      pool:
         vmImage: $(imageName)
       displayName: ${{ variables.buildDescription }}
       steps:
