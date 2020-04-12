@@ -350,6 +350,7 @@ stages:
             buildDescription: Mono
             imageName: ubuntu-latest
             artifactName: Jackett.Binaries.Mono.tar.gz
+      pool:      
         vmImage: $(imageName)
       displayName: ${{ variables.buildDescription }}
       steps:
