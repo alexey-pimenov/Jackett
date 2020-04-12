@@ -477,7 +477,7 @@ stages:
     dependsOn:
       - UnitTestJackett
       - Integration
-    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/rutracker-movie-parsing'))
     jobs:
     - job: Publish
       workspace:
