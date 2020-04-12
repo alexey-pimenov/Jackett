@@ -1573,7 +1573,7 @@ namespace Jackett.Common.Indexers
                         release.Title = title.Trim();
                     }
                 }
-                if (release.Title.IsNullOrEmptyOrWhitespace())
+                if (String.IsNullOrEmpty(release.Title) || String.IsNullOrWhiteSpace(release.Title))
                 {
                     release.Title = titles[0].Trim();
                 }
