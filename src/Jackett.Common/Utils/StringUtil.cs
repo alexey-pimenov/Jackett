@@ -15,10 +15,8 @@ namespace Jackett.Common.Utils
 {
     public static class StringUtil
     {
-        public static string StripNonAlphaNumeric(this string str, string replacement = "")
-        {
-            return StripRegex(str, "[^a-zA-Z0-9 -]", replacement);
-        }
+        public static string StripNonAlphaNumeric(this string str, string replacement = "") =>
+            StripRegex(str, "[^a-zA-Z0-9 -]", replacement);
 
         public static string StripRegex(string str, string regex, string replacement = "")
         {
@@ -43,26 +41,16 @@ namespace Jackett.Common.Utils
             return stringBuilder.ToString();
         }
 
-        public static string FromBase64(string str)
-        {
-            return Encoding.UTF8.GetString(Convert.FromBase64String(str));
-        }
+        public static string FromBase64(string str) =>
+            Encoding.UTF8.GetString(Convert.FromBase64String(str));
 
         /// <summary>
         /// Convert an array of bytes to a string of hex digits
         /// </summary>
         /// <param name="bytes">array of bytes</param>
         /// <returns>String of hex digits</returns>
-        public static string HexStringFromBytes(byte[] bytes)
-        {
-            var sb = new StringBuilder();
-            foreach (var b in bytes)
-            {
-                var hex = b.ToString("x2");
-                sb.Append(hex);
-            }
-            return sb.ToString();
-        }
+        public static string HexStringFromBytes(byte[] bytes) =>
+            string.Join("", bytes.Select(b => b.ToString("X2")));
 
         /// <summary>
         /// Compute hash for string encoded as UTF8
@@ -90,6 +78,8 @@ namespace Jackett.Common.Utils
             return HexStringFromBytes(hashBytes);
         }
 
+        // Is never used
+        // remove in favor of Exception.ToString() ?
         public static string GetExceptionDetails(this Exception exception)
         {
             var properties = exception.GetType()
@@ -148,23 +138,39 @@ namespace Jackett.Common.Utils
             return changed ? sb.ToString() : text;
         }
 
-        public static string GetQueryString(this NameValueCollection collection, Encoding encoding = null)
-        {
-            if (encoding == null)
-                encoding = Encoding.UTF8;
-            return string.Join("&", collection.AllKeys.Select(a => a + "=" + WebUtilityHelpers.UrlEncode(collection[a], encoding)));
-        }
+        /// <summary>
+        /// Converts a NameValueCollection to an appropriately formatted query string.
+        /// Duplicate keys are allowed in a NameValueCollection, but are stored as a csv string in Value.
+        /// This function handles leaving the values together in the csv string or splitting the value into separate keys
+        /// </summary>
+        /// <param name="collection">The NameValueCollection being converted</param>
+        /// <param name="encoding">The Encoding to use in url encoding Value</param>
+        /// <param name="duplicateKeysIfMulti">Duplicate keys are handled as true => {"Key=Val1", "Key=Val2} or false => {"Key=Val1,Val2"}</param>
+        /// <param name="separator">The string used to separate each query value</param>
+        /// <returns>A web encoded string of key=value parameters separated by the separator</returns>
+        public static string GetQueryString(this NameValueCollection collection, Encoding encoding = null,
+                                            bool duplicateKeysIfMulti = false, string separator = "&") =>
+            collection.ToEnumerable(duplicateKeysIfMulti).GetQueryString(encoding, separator);
 
-        public static string GetQueryString(this ICollection<KeyValuePair<string, string>> collection, Encoding encoding = null)
-        {
-            if (encoding == null)
-                encoding = Encoding.UTF8;
-            return string.Join("&", collection.Select(a => a.Key + "=" + WebUtilityHelpers.UrlEncode(a.Value, encoding)));
-        }
+        public static string GetQueryString(this IEnumerable<KeyValuePair<string, string>> collection,
+                                            Encoding encoding = null, string separator = "&") =>
+            string.Join(separator,
+                        collection.Select(a => $"{a.Key}={WebUtilityHelpers.UrlEncode(a.Value, encoding ?? Encoding.UTF8)}"));
 
-        public static void Add(this ICollection<KeyValuePair<string, string>> collection, string key, string value)
+        public static void Add(this ICollection<KeyValuePair<string, string>> collection, string key, string value) => collection.Add(new KeyValuePair<string, string>(key, value));
+
+        public static IEnumerable<KeyValuePair<string, string>> ToEnumerable(
+            this NameValueCollection collection, bool duplicateKeysIfMulti = false)
         {
-            collection.Add(new KeyValuePair<string, string>(key, value));
+            foreach (string key in collection.Keys)
+            {
+                var value = collection[key];
+                if (duplicateKeysIfMulti)
+                    foreach (var val in value.Split(','))
+                        yield return new KeyValuePair<string, string>(key, val);
+                else
+                    yield return new KeyValuePair<string, string>(key, value);
+            }
         }
 
         public static string ToHtmlPretty(this IElement element)

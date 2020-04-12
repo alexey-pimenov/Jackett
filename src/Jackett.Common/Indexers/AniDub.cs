@@ -83,8 +83,8 @@ namespace Jackett.Common.Indexers
 
         private ConfigurationDataAniDub Configuration
         {
-            get { return (ConfigurationDataAniDub)configData; }
-            set { configData = value; }
+            get => (ConfigurationDataAniDub)configData;
+            set => configData = value;
         }
 
         /// <summary>
@@ -134,18 +134,11 @@ namespace Jackett.Common.Indexers
             return await base.Download(link);
         }
 
+        // If the search string is empty use the latest releases
         protected override async Task<IEnumerable<ReleaseInfo>> PerformQuery(TorznabQuery query)
-        {
-            // If the search string is empty use the latest releases
-            if (query.IsTest || query.SearchTerm.IsNullOrEmptyOrWhitespace())
-            {
-                return await FetchNewReleases();
-            }
-            else
-            {
-                return await PerformSearch(query);
-            }
-        }
+            => query.IsTest || string.IsNullOrWhiteSpace(query.SearchTerm)
+            ? await FetchNewReleases()
+            : await PerformSearch(query);
 
         private async Task EnsureAuthorized()
         {
@@ -227,12 +220,11 @@ namespace Jackett.Common.Indexers
                     }
 
                     var seeders = GetReleaseSeeders(tabNode);
-
-
+                    var guid = new Uri(GetReleaseGuid(url, tabNode));
                     var release = new ReleaseInfo
                     {
                         Title = BuildReleaseTitle(baseTitle, tabNode),
-                        Guid = new Uri(GetReleaseGuid(url, tabNode)),
+                        Guid = guid,
                         Comments = uri,
                         Link = GetReleaseLink(tabNode),
                         PublishDate = date,
@@ -258,11 +250,8 @@ namespace Jackett.Common.Indexers
             return releases;
         }
 
-        private static string GetReleaseGuid(string url, IElement tabNode)
-        {
-            // Appending id to differentiate between different quality versions
-            return QueryHelpers.AddQueryString(url, "id", GetTorrentId(tabNode));
-        }
+        // Appending id to differentiate between different quality versions
+        private static string GetReleaseGuid(string url, IElement tabNode) => QueryHelpers.AddQueryString(url, "id", GetTorrentId(tabNode));
 
         private static int GetReleaseLeechers(IElement tabNode)
         {
@@ -323,7 +312,7 @@ namespace Jackett.Common.Indexers
             var releaseNode = tabNode.ParentElement;
             var quality = GetQuality(releaseNode);
 
-            if (!quality.IsNullOrEmptyOrWhitespace())
+            if (!string.IsNullOrWhiteSpace(quality))
             {
                 return $"{baseTitle} [{quality}]";
             }
@@ -334,7 +323,7 @@ namespace Jackett.Common.Indexers
         private static string GetQuality(IElement releaseNode)
         {
             // For some releases there's no block with quality
-            if (releaseNode.Id.IsNullOrEmptyOrWhitespace())
+            if (string.IsNullOrWhiteSpace(releaseNode.Id))
             {
                 return null;
             }
@@ -443,15 +432,9 @@ namespace Jackett.Common.Indexers
             return defaultSeason;
         }
 
-        private string StripRussianTitle(string title)
-        {
-            if (Configuration.StripRussianTitle.Value)
-            {
-                return StripRussianTitleRegex.Value.Replace(title, string.Empty);
-            }
-
-            return title;
-        }
+        private string StripRussianTitle(string title) => Configuration.StripRussianTitle.Value
+            ? StripRussianTitleRegex.Value.Replace(title, string.Empty)
+            : title;
 
         private static string FixBookInfo(string title) =>
             title.Replace("[Главы ", "[");

@@ -26,7 +26,7 @@ namespace Jackett.Common.Indexers
     public class CardigannIndexer : BaseWebIndexer
     {
         protected IndexerDefinition Definition;
-        public override string ID { get { return (Definition != null ? Definition.Site : GetIndexerID(GetType())); } }
+        public override string ID => (Definition != null ? Definition.Site : GetIndexerID(GetType()));
 
         protected WebClientStringResult landingResult;
         protected IHtmlDocument landingResultDocument;
@@ -35,8 +35,8 @@ namespace Jackett.Common.Indexers
 
         private new ConfigurationData configData
         {
-            get { return base.configData; }
-            set { base.configData = value; }
+            get => base.configData;
+            set => base.configData = value;
         }
 
         protected readonly string[] OptionalFileds = new string[] { "imdb", "rageid", "tvdbid", "banner" };
@@ -52,9 +52,11 @@ namespace Jackett.Common.Indexers
             // Add default data if necessary
             if (Definition.Settings == null)
             {
-                Definition.Settings = new List<settingsField>();
-                Definition.Settings.Add(new settingsField { Name = "username", Label = "Username", Type = "text" });
-                Definition.Settings.Add(new settingsField { Name = "password", Label = "Password", Type = "password" });
+                Definition.Settings = new List<settingsField>
+                {
+                    new settingsField { Name = "username", Label = "Username", Type = "text" },
+                    new settingsField { Name = "password", Label = "Password", Type = "password" }
+                };
             }
 
             if (Definition.Encoding == null)
@@ -71,10 +73,11 @@ namespace Jackett.Common.Indexers
             // convert definitions with a single search Path to a Paths entry
             if (Definition.Search.Path != null)
             {
-                var legacySearchPath = new searchPathBlock();
-                legacySearchPath.Path = Definition.Search.Path;
-                legacySearchPath.Inheritinputs = true;
-                Definition.Search.Paths.Add(legacySearchPath);
+                Definition.Search.Paths.Add(new searchPathBlock
+                {
+                    Path = Definition.Search.Path,
+                    Inheritinputs = true
+                });
             }
 
             // init missing mandatory attributes
@@ -90,9 +93,10 @@ namespace Jackett.Common.Indexers
                 DefaultSiteLink += "/";
             Language = Definition.Language;
             Type = Definition.Type;
-            TorznabCaps = new TorznabCapabilities();
-
-            TorznabCaps.SupportsImdbMovieSearch = Definition.Caps.Modes.Where(c => c.Key == "movie-search" && c.Value.Contains("imdbid")).Any();
+            TorznabCaps = new TorznabCapabilities
+            {
+                SupportsImdbMovieSearch = Definition.Caps.Modes.Any(c => c.Key == "movie-search" && c.Value.Contains("imdbid"))
+            };
             if (Definition.Caps.Modes.ContainsKey("music-search"))
                 TorznabCaps.SupportedMusicSearchParamsList = Definition.Caps.Modes["music-search"];
 
@@ -204,9 +208,10 @@ namespace Jackett.Common.Indexers
 
         protected Dictionary<string, object> getTemplateVariablesFromConfigData()
         {
-            var variables = new Dictionary<string, object>();
-
-            variables[".Config.sitelink"] = SiteLink;
+            var variables = new Dictionary<string, object>
+            {
+                [".Config.sitelink"] = SiteLink
+            };
             foreach (var Setting in Definition.Settings)
             {
                 var item = configData.GetDynamic(Setting.Name);
@@ -509,10 +514,12 @@ namespace Jackett.Common.Indexers
                     var CloudFlareCaptchaChallenge = landingResultDocument.QuerySelector("script[src=\"/cdn-cgi/scripts/cf.challenge.js\"]");
                     if (CloudFlareCaptchaChallenge != null)
                     {
-                        var CloudFlareQueryCollection = new NameValueCollection();
-                        CloudFlareQueryCollection["id"] = CloudFlareCaptchaChallenge.GetAttribute("data-ray");
+                        var CloudFlareQueryCollection = new NameValueCollection
+                        {
+                            ["id"] = CloudFlareCaptchaChallenge.GetAttribute("data-ray"),
 
-                        CloudFlareQueryCollection["g-recaptcha-response"] = CaptchaConfigItem.Value;
+                            ["g-recaptcha-response"] = CaptchaConfigItem.Value
+                        };
                         var ClearanceUrl = resolvePath("/cdn-cgi/l/chk_captcha?" + CloudFlareQueryCollection.GetQueryString());
 
                         var ClearanceResult = await RequestStringWithCookies(ClearanceUrl.ToString(), null, SiteLink);
@@ -764,15 +771,9 @@ namespace Jackett.Common.Indexers
             return null;
         }
 
-        protected string getRedirectDomainHint(WebClientByteResult result)
-        {
-            return getRedirectDomainHint(result.Request.Url, result.RedirectingTo);
-        }
+        protected string getRedirectDomainHint(WebClientByteResult result) => getRedirectDomainHint(result.Request.Url, result.RedirectingTo);
 
-        protected string getRedirectDomainHint(WebClientStringResult result)
-        {
-            return getRedirectDomainHint(result.Request.Url, result.RedirectingTo);
-        }
+        protected string getRedirectDomainHint(WebClientStringResult result) => getRedirectDomainHint(result.Request.Url, result.RedirectingTo);
 
         protected async Task<bool> TestLogin()
         {
@@ -896,12 +897,14 @@ namespace Jackett.Common.Indexers
             if (cloudFlareCaptchaScript != null && grecaptcha != null && cloudFlareCaptchaDisplay)
             {
                 hasCaptcha = true;
-                var CaptchaItem = new RecaptchaItem();
-                CaptchaItem.Name = "Captcha";
-                CaptchaItem.Version = "2";
-                CaptchaItem.SiteKey = grecaptcha.GetAttribute("data-sitekey");
-                if (CaptchaItem.SiteKey == null) // some sites don't store the sitekey in the .g-recaptcha div (e.g. cloudflare captcha challenge page)
-                    CaptchaItem.SiteKey = landingResultDocument.QuerySelector("[data-sitekey]").GetAttribute("data-sitekey");
+                var CaptchaItem = new RecaptchaItem
+                {
+                    Name = "Captcha",
+                    Version = "2",
+                    // some sites don't store the sitekey in the .g-recaptcha div (e.g. cloudflare captcha challenge page)
+                    SiteKey = grecaptcha.GetAttribute("data-sitekey") ??
+                              landingResultDocument.QuerySelector("[data-sitekey]").GetAttribute("data-sitekey")
+                };
 
                 configData.AddDynamic("Captcha", CaptchaItem);
             }
@@ -996,7 +999,7 @@ namespace Jackett.Common.Indexers
                         try
                         {
                             var Date = DateTimeUtil.ParseDateTimeGoLang(Data, layout);
-                            Data = Date.ToString(DateTimeUtil.RFC1123ZPattern);
+                            Data = Date.ToString(DateTimeUtil.Rfc1123ZPattern);
                         }
                         catch (FormatException ex)
                         {
@@ -1062,10 +1065,10 @@ namespace Jackett.Common.Indexers
                         break;
                     case "timeago":
                     case "reltime":
-                        Data = DateTimeUtil.FromTimeAgo(Data).ToString(DateTimeUtil.RFC1123ZPattern);
+                        Data = DateTimeUtil.FromTimeAgo(Data).ToString(DateTimeUtil.Rfc1123ZPattern);
                         break;
                     case "fuzzytime":
-                        Data = DateTimeUtil.FromUnknown(Data).ToString(DateTimeUtil.RFC1123ZPattern);
+                        Data = DateTimeUtil.FromUnknown(Data).ToString(DateTimeUtil.Rfc1123ZPattern);
                         break;
                     case "validfilename":
                         Data = StringUtil.MakeValidFileName(Data, '_', false);
@@ -1108,7 +1111,12 @@ namespace Jackett.Common.Indexers
                     case "strdump":
                         // for debugging
                         var DebugData = Data.Replace("\r", "\\r").Replace("\n", "\\n").Replace("\xA0", "\\xA0");
-                        logger.Debug(string.Format("CardigannIndexer ({0}): strdump: {1}", ID, DebugData));
+                        var strTag = (string)Filter.Args;
+                        if (strTag != null)
+                            strTag = string.Format("({0}):", strTag);
+                        else
+                            strTag = ":";
+                        logger.Debug(string.Format("CardigannIndexer ({0}): strdump{1} {2}", ID, strTag, DebugData));
                         break;
                     default:
                         break;
@@ -1188,13 +1196,7 @@ namespace Jackett.Common.Indexers
             return applyFilters(ParseUtil.NormalizeSpace(value), Selector.Filters, variables);
         }
 
-        protected Uri resolvePath(string path, Uri currentUrl = null)
-        {
-            if (currentUrl == null)
-                currentUrl = new Uri(SiteLink);
-
-            return new Uri(currentUrl, path);
-        }
+        protected Uri resolvePath(string path, Uri currentUrl = null) => new Uri(currentUrl ?? new Uri(SiteLink), path);
 
         protected override async Task<IEnumerable<ReleaseInfo>> PerformQuery(TorznabQuery query)
         {
@@ -1407,9 +1409,11 @@ namespace Jackett.Common.Indexers
                     {
                         try
                         {
-                            var release = new ReleaseInfo();
-                            release.MinimumRatio = 1;
-                            release.MinimumSeedTime = 172800; // 48 hours
+                            var release = new ReleaseInfo
+                            {
+                                MinimumRatio = 1,
+                                MinimumSeedTime = 172800 // 48 hours
+                            };
 
                             // Parse fields
                             foreach (var Field in Search.Fields)
@@ -1485,17 +1489,12 @@ namespace Jackett.Common.Indexers
                                             break;
                                         case "category":
                                             var cats = MapTrackerCatToNewznab(value);
-                                            if (release.Category == null)
+                                            if (cats.Any())
                                             {
-                                                release.Category = cats;
-                                            }
-                                            else
-                                            {
-                                                foreach (var cat in cats)
-                                                {
-                                                    if (!release.Category.Contains(cat))
-                                                        release.Category.Add(cat);
-                                                }
+                                                if (release.Category == null || FieldModifiers.Contains("noappend"))
+                                                    release.Category = cats;
+                                                else
+                                                    release.Category = release.Category.Union(cats).ToList();
                                             }
                                             value = release.Category.ToString();
                                             break;
@@ -1521,7 +1520,7 @@ namespace Jackett.Common.Indexers
                                             break;
                                         case "date":
                                             release.PublishDate = DateTimeUtil.FromUnknown(value);
-                                            value = release.PublishDate.ToString(DateTimeUtil.RFC1123ZPattern);
+                                            value = release.PublishDate.ToString(DateTimeUtil.Rfc1123ZPattern);
                                             break;
                                         case "files":
                                             release.Files = ParseUtil.CoerceLong(value);
@@ -1604,7 +1603,9 @@ namespace Jackett.Common.Indexers
                                             if (query.ImdbID != null && TorznabCaps.SupportsImdbMovieSearch)
                                                 break; // skip andmatch filter for imdb searches
 
-                                            if (!query.MatchQueryStringAND(release.Title, CharacterLimit))
+                                            var queryKeywords = variables[".Keywords"] as string;
+
+                                            if (!query.MatchQueryStringAND(release.Title, CharacterLimit, queryKeywords))
                                             {
                                                 logger.Debug(string.Format("CardigannIndexer ({0}): skipping {1} (andmatch filter)", ID, release.Title));
                                                 SkipRelease = true;
@@ -1708,9 +1709,9 @@ namespace Jackett.Common.Indexers
             if (queryCollection.Count > 0)
             {
                 if (!requestLinkStr.Contains("?"))
-                    requestLinkStr += "?" + queryCollection.GetQueryString(Encoding).Substring(1);
+                    requestLinkStr += "?" + queryCollection.GetQueryString(Encoding, separator: request.Queryseparator).Substring(1);
                 else
-                    requestLinkStr += queryCollection.GetQueryString(Encoding);
+                    requestLinkStr += queryCollection.GetQueryString(Encoding, separator: request.Queryseparator);
             }
 
             var response = await RequestBytesWithCookiesAndRetry(requestLinkStr, null, method, referer, pairs);

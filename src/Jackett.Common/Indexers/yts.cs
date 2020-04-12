@@ -23,19 +23,22 @@ namespace Jackett.Common.Indexers
             "https://yts.lt/",
         };
 
-        private string ApiEndpoint { get { return SiteLink + "api/v2/list_movies.json"; } }
+        private string ApiEndpoint => SiteLink + "api/v2/list_movies.json";
 
         private new ConfigurationData configData
         {
-            get { return base.configData; }
-            set { base.configData = value; }
+            get => base.configData;
+            set => base.configData = value;
         }
 
         public Yts(IIndexerConfigurationService configService, WebClient wc, Logger l, IProtectionService ps)
             : base(name: "YTS",
                 description: "YTS is a Public torrent site specialising in HD movies of small size",
                 link: "https://yts.mx/",
-                caps: new TorznabCapabilities(),
+                caps: new TorznabCapabilities
+                {
+                    SupportsImdbMovieSearch = true
+                },
                 configService: configService,
                 client: wc,
                 logger: l,
@@ -46,12 +49,10 @@ namespace Jackett.Common.Indexers
             Language = "en-us";
             Type = "public";
 
-            TorznabCaps.SupportsImdbMovieSearch = true;
-
             webclient.requestDelay = 2.5; // 0.5 requests per second (2 causes problems)
 
             // note: the API does not support searching with categories, so these are dummy ones for torznab compatibility
-            // we map these newznab cats with the returned quality value in the releases routine. 
+            // we map these newznab cats with the returned quality value in the releases routine.
             AddCategoryMapping(45, TorznabCatType.MoviesHD, "Movies/x264/720p");
             AddCategoryMapping(44, TorznabCatType.MoviesHD, "Movies/x264/1080p");
             AddCategoryMapping(46, TorznabCatType.MoviesUHD, "Movies/x264/2160p"); // added for #7010
@@ -63,29 +64,26 @@ namespace Jackett.Common.Indexers
             configData.LoadValuesFromJson(configJson);
             var releases = await PerformQuery(new TorznabQuery());
 
-            await ConfigureIfOK(string.Empty, releases.Count() > 0, () =>
-            {
-                throw new Exception("Could not find releases from this URL");
-            });
+            await ConfigureIfOK(string.Empty, releases.Count() > 0,
+                                () => throw new Exception("Could not find releases from this URL"));
 
             return IndexerConfigurationStatus.Completed;
         }
 
-        protected override async Task<IEnumerable<ReleaseInfo>> PerformQuery(TorznabQuery query)
-        {
-            return await PerformQuery(query, 0);
-        }
+        protected override async Task<IEnumerable<ReleaseInfo>> PerformQuery(TorznabQuery query) => await PerformQuery(query, 0);
 
         public async Task<IEnumerable<ReleaseInfo>> PerformQuery(TorznabQuery query, int attempts)
         {
             var releases = new List<ReleaseInfo>();
             var searchString = query.GetQueryString();
 
-            var queryCollection = new NameValueCollection();
+            var queryCollection = new NameValueCollection
+            {
 
-            // without this the API sometimes returns nothing
-            queryCollection.Add("sort", "date_added");
-            queryCollection.Add("limit", "50");
+                // without this the API sometimes returns nothing
+                { "sort", "date_added" },
+                { "limit", "50" }
+            };
 
             if (query.ImdbID != null)
             {
@@ -132,6 +130,7 @@ namespace Jackett.Common.Indexers
                         continue;
                     foreach (var torrent_info in torrents)
                     {
+                        //TODO change to initializer
                         var release = new ReleaseInfo();
 
                         // append type: BRRip or WEBRip, resolves #3558 via #4577

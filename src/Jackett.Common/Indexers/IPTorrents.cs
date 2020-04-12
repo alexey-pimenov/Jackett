@@ -2,15 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
-using System.Net;
 using System.Text;
 using System.Threading.Tasks;
-using CsQuery;
+using AngleSharp.Html.Parser;
 using Jackett.Common.Models;
 using Jackett.Common.Models.IndexerConfig;
 using Jackett.Common.Services.Interfaces;
 using Jackett.Common.Utils;
-using Jackett.Common.Utils.Clients;
 using Newtonsoft.Json.Linq;
 using NLog;
 
@@ -18,9 +16,7 @@ namespace Jackett.Common.Indexers
 {
     public class IPTorrents : BaseWebIndexer
     {
-        private string LoginUrl => SiteLink + "login.php";
-        private string TakeLoginUrl => SiteLink + "take_login.php";
-        private string BrowseUrl => SiteLink + "t";
+        private string SearchUrl => SiteLink + "t";
 
         public override string[] AlternativeSiteLinks { get; protected set; } = {
             "https://iptorrents.com/",
@@ -45,33 +41,31 @@ namespace Jackett.Common.Indexers
             "https://ipt.world/",
         };
 
-        private new ConfigurationDataRecaptchaLogin configData
-        {
-            get => (ConfigurationDataRecaptchaLogin)base.configData;
-            set => base.configData = value;
-        }
+        private new ConfigurationDataCookie configData => (ConfigurationDataCookie)base.configData;
 
         public IPTorrents(IIndexerConfigurationService configService, Utils.Clients.WebClient wc, Logger l, IProtectionService ps)
-            : base(name: "IPTorrents",
-                description: "Always a step ahead.",
-                link: "https://iptorrents.com/",
-                caps: new TorznabCapabilities(),
-                configService: configService,
-                client: wc,
-                logger: l,
-                p: ps,
-                configData: new ConfigurationDataRecaptchaLogin())
+            : base("IPTorrents",
+                   description: "Always a step ahead.",
+                   link: "https://iptorrents.com/",
+                   caps: new TorznabCapabilities
+                   {
+                       SupportsImdbMovieSearch = true
+                       // SupportsImdbTVSearch = true (supported by the site but disabled due to #8107)
+                   },
+                   configService: configService,
+                   client: wc,
+                   logger: l,
+                   p: ps,
+                   configData: new ConfigurationDataCookie("For best results, change the 'Torrents per page' option to 100 in the website Settings."))
         {
             Encoding = Encoding.UTF8;
             Language = "en-us";
             Type = "private";
 
-            TorznabCaps.SupportsImdbMovieSearch = true;
-
             AddCategoryMapping(72, TorznabCatType.Movies, "Movies");
             AddCategoryMapping(87, TorznabCatType.Movies3D, "Movie/3D");
             AddCategoryMapping(77, TorznabCatType.MoviesSD, "Movie/480p");
-            AddCategoryMapping(101, TorznabCatType.MoviesHD, "Movie/4K");
+            AddCategoryMapping(101, TorznabCatType.MoviesUHD, "Movie/4K");
             AddCategoryMapping(89, TorznabCatType.MoviesHD, "Movie/BD-R");
             AddCategoryMapping(90, TorznabCatType.MoviesSD, "Movie/BD-Rip");
             AddCategoryMapping(96, TorznabCatType.MoviesSD, "Movie/Cam");
@@ -142,104 +136,44 @@ namespace Jackett.Common.Indexers
             AddCategoryMapping(84, TorznabCatType.XXXImageset, "XXX/Pics/Wallpapers");
         }
 
-        public override async Task<ConfigurationData> GetConfigurationForSetup()
-        {
-            var loginPage = await RequestStringWithCookies(LoginUrl, string.Empty);
-            CQ cq = loginPage.Content;
-            var captcha = cq.Find(".g-recaptcha");
-            if (captcha.Any())
-            {
-                var result = configData;
-                result.CookieHeader.Value = loginPage.Cookies;
-                result.Captcha.SiteKey = captcha.Attr("data-sitekey");
-                result.Captcha.Version = "2";
-                return result;
-            }
-            else
-            {
-                var result = new ConfigurationDataBasicLogin
-                {
-                    SiteLink = { Value = configData.SiteLink.Value },
-                    Instructions = { Value = configData.Instructions.Value },
-                    Username = { Value = configData.Username.Value },
-                    Password = { Value = configData.Password.Value },
-                    CookieHeader = { Value = loginPage.Cookies }
-                };
-                return result;
-            }
-        }
-
         public override async Task<IndexerConfigurationStatus> ApplyConfiguration(JToken configJson)
         {
             LoadValuesFromJson(configJson);
-            var pairs = new Dictionary<string, string> {
-                { "username", configData.Username.Value },
-                { "password", configData.Password.Value },
-                { "g-recaptcha-response", configData.Captcha.Value }
-            };
 
-            if (!string.IsNullOrWhiteSpace(configData.Captcha.Cookie))
+            CookieHeader = configData.Cookie.Value;
+            try
             {
-                CookieHeader = configData.Captcha.Cookie;
-                try
-                {
-                    var results = await PerformQuery(new TorznabQuery());
-                    if (!results.Any())
-                        throw new Exception("Your cookie did not work");
+                var results = await PerformQuery(new TorznabQuery());
+                if (!results.Any())
+                    throw new Exception("Your cookie did not work");
 
-                    IsConfigured = true;
-                    SaveConfig();
-                    return IndexerConfigurationStatus.Completed;
-                }
-                catch (Exception e)
-                {
-                    IsConfigured = false;
-                    throw new Exception("Your cookie did not work: " + e.Message);
-                }
+                IsConfigured = true;
+                SaveConfig();
+                return IndexerConfigurationStatus.Completed;
             }
-
-            var request = new Utils.Clients.WebRequest()
+            catch (Exception e)
             {
-                Url = TakeLoginUrl,
-                Type = RequestType.POST,
-                Referer = SiteLink,
-                Encoding = Encoding,
-                PostData = pairs
-            };
-            var response = await webclient.GetString(request);
-            var firstCallCookies = response.Cookies;
-            // Redirect to ? then to /t
-            await FollowIfRedirect(response, request.Url, null, firstCallCookies);
-
-            await ConfigureIfOK(firstCallCookies, response.Content.Contains("/lout.php"), () =>
-            {
-                CQ dom = response.Content;
-                var messageEl = dom["body > div"].First();
-                var errorMessage = messageEl.Any() ? messageEl.Text().Trim() : response.Content;
-                throw new ExceptionWithConfigData(errorMessage, configData);
-            });
-            return IndexerConfigurationStatus.RequiresTesting;
+                IsConfigured = false;
+                throw new Exception("Your cookie did not work: " + e.Message);
+            }
         }
 
         protected override async Task<IEnumerable<ReleaseInfo>> PerformQuery(TorznabQuery query)
         {
             var releases = new List<ReleaseInfo>();
-            var searchString = query.GetQueryString();
-            var searchUrl = BrowseUrl;
-            var queryCollection = new NameValueCollection();
 
-            if (!string.IsNullOrWhiteSpace(query.ImdbID))
-                queryCollection.Add("q", query.ImdbID);
-            else if (!string.IsNullOrWhiteSpace(searchString))
-                queryCollection.Add("q", searchString);
+            var qc = new NameValueCollection();
+
+            if (query.IsImdbQuery)
+                qc.Add("q", query.ImdbID);
+            else if (!string.IsNullOrWhiteSpace(query.GetQueryString()))
+                qc.Add("q", query.GetQueryString());
 
             foreach (var cat in MapTorznabCapsToTrackers(query))
-                queryCollection.Add(cat, string.Empty);
+                qc.Add(cat, string.Empty);
 
-            if (queryCollection.Count > 0)
-                searchUrl += "?" + queryCollection.GetQueryString();
-
-            var response = await RequestStringWithCookiesAndRetry(searchUrl, null, BrowseUrl);
+            var searchUrl = SearchUrl + "?" + qc.GetQueryString();
+            var response = await RequestStringWithCookiesAndRetry(searchUrl, null, SearchUrl);
             var results = response.Content;
 
             if (results == null || !results.Contains("/lout.php"))
@@ -250,54 +184,63 @@ namespace Jackett.Common.Indexers
 
             try
             {
-                CQ dom = results;
+                var parser = new HtmlParser();
+                var doc = parser.ParseDocument(results);
 
-                var rows = dom["table[id='torrents'] > tbody > tr"];
+                var rows = doc.QuerySelectorAll("table[id='torrents'] > tbody > tr");
                 foreach (var row in rows.Skip(1))
                 {
-                    var release = new ReleaseInfo();
-                    var qRow = row.Cq();
-                    var qTitleLink = qRow.Find("a[href^=\"/details.php?id=\"]").First();
+                    var qTitleLink = row.QuerySelector("a[href^=\"/details.php?id=\"]");
+                    if (qTitleLink == null) // no results
+                        continue;
+
                     // drop invalid char that seems to have cropped up in some titles. #6582
-                    release.Title = qTitleLink.Text().Trim().Replace("\u000f", "");
+                    var title = qTitleLink.TextContent.Trim().Replace("\u000f", "");
+                    var comments = new Uri(SiteLink + qTitleLink.GetAttribute("href").TrimStart('/'));
 
-                    // If we search an get no results, we still get a table just with no info.
-                    if (string.IsNullOrWhiteSpace(release.Title))
-                        break;
+                    var qLink = row.QuerySelector("a[href^=\"/download.php/\"]");
+                    var link = new Uri(SiteLink + qLink.GetAttribute("href").TrimStart('/'));
 
-                    release.Guid = new Uri(SiteLink + qTitleLink.Attr("href").Substring(1));
-                    release.Comments = release.Guid;
+                    var descrSplit = row.QuerySelector(".t_ctime").TextContent.Split('|');
+                    var dateSplit = descrSplit.Last().Trim().Split(new[] { " by " }, StringSplitOptions.None);
+                    var publishDate = DateTimeUtil.FromTimeAgo(dateSplit.First());
+                    var description = descrSplit.Length > 1 ? "Tags: " + descrSplit.First().Trim() : "";
+                    if (dateSplit.Length > 1)
+                        description += " Uploader: " + dateSplit.Last();
+                    description = description.Trim();
 
-                    var descString = qRow.Find(".t_ctime").Text();
-                    var dateString = descString.Split('|').Last().Trim();
-                    dateString = dateString.Split(new[] { " by " }, StringSplitOptions.None)[0];
-                    release.PublishDate = DateTimeUtil.FromTimeAgo(dateString);
+                    var catIcon = row.QuerySelector("td:nth-of-type(1) a");
+                    if (catIcon == null)
+                        // Torrents - Category column == Text or Code
+                        // release.Category = MapTrackerCatDescToNewznab(row.Cq().Find("td:eq(0)").Text()); // Works for "Text" but only contains the parent category
+                        throw new Exception("Please, change the 'Torrents - Category column' option to 'Icons' in the website Settings. Wait a minute (cache) and then try again.");
+                    // Torrents - Category column == Icons
+                    var cat = MapTrackerCatToNewznab(catIcon.GetAttribute("href").Substring(1));
 
-                    var qLink = row.ChildElements.ElementAt(3).Cq().Children("a");
-                    release.Link = new Uri(SiteLink + WebUtility.UrlEncode(qLink.Attr("href").TrimStart('/')));
+                    var grabs = ParseUtil.CoerceInt(row.QuerySelector("td:nth-last-child(3)").TextContent);
+                    var size = ReleaseInfo.GetBytes(row.Children[5].TextContent);
+                    var seeders = ParseUtil.CoerceInt(row.QuerySelector(".t_seeders").TextContent.Trim());
+                    var leechers = ParseUtil.CoerceInt(row.QuerySelector(".t_leechers").TextContent.Trim());
+                    var dlVolumeFactor = row.QuerySelector("span.t_tag_free_leech") != null ? 0 : 1;
 
-                    var sizeStr = row.ChildElements.ElementAt(5).Cq().Text();
-                    release.Size = ReleaseInfo.GetBytes(sizeStr);
-
-                    release.Seeders = ParseUtil.CoerceInt(qRow.Find(".t_seeders").Text().Trim());
-                    release.Peers = ParseUtil.CoerceInt(qRow.Find(".t_leechers").Text().Trim()) + release.Seeders;
-
-                    var catIcon = row.Cq().Find("td:eq(0) a");
-                    if (catIcon.Length >= 1) // Torrents - Category column == Icons
-                        release.Category = MapTrackerCatToNewznab(catIcon.First().Attr("href").Substring(1));
-                    else // Torrents - Category column == Text or Code
-                        //release.Category = MapTrackerCatDescToNewznab(row.Cq().Find("td:eq(0)").Text()); // Works for "Text" but only contains the parent category
-                        throw new Exception("Please go to " + SiteLink + "settings.php and change the \"Torrents - Category column\" option to \"Icons\". Wait a minute (cache) and then try again.");
-
-                    var filesElement = row.Cq().Find("a[href*=\"/files\"]"); // optional
-                    if (filesElement.Length == 1)
-                        release.Files = ParseUtil.CoerceLong(filesElement.Text());
-
-                    var grabs = row.Cq().Find("td:nth-last-child(3)").Text();
-                    release.Grabs = ParseUtil.CoerceInt(grabs);
-
-                    release.DownloadVolumeFactor = row.Cq().Find("span.t_tag_free_leech").Any() ? 0 : 1;
-                    release.UploadVolumeFactor = 1;
+                    var release = new ReleaseInfo
+                    {
+                        Title = title,
+                        Comments = comments,
+                        Guid = comments,
+                        Link = link,
+                        PublishDate = publishDate,
+                        Category = cat,
+                        Description = description,
+                        Size = size,
+                        Grabs = grabs,
+                        Seeders = seeders,
+                        Peers = seeders + leechers,
+                        DownloadVolumeFactor = dlVolumeFactor,
+                        UploadVolumeFactor = 1,
+                        MinimumRatio = 1,
+                        MinimumSeedTime = 1209600 // 336 hours
+                    };
 
                     releases.Add(release);
                 }

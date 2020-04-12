@@ -8,7 +8,6 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
-using CsQuery;
 using Jackett.Common.Models;
 using Jackett.Common.Models.IndexerConfig;
 using Jackett.Common.Services.Interfaces;
@@ -24,20 +23,20 @@ namespace Jackett.Common.Indexers
         private static readonly Regex parsePlayEpisodeRegex = new Regex("PlayEpisode\\('(?<id>\\d{1,3})(?<season>\\d{3})(?<episode>\\d{3})'\\)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex parseReleaseDetailsRegex = new Regex("Видео:\\ (?<quality>.+).\\ Размер:\\ (?<size>.+).\\ Перевод", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        private string LoginUrl { get { return SiteLink + "login"; } }
+        private string LoginUrl => SiteLink + "login";
 
         // http://www.lostfilm.tv/login
-        private string ApiUrl { get { return SiteLink + "ajaxik.php"; } }
+        private string ApiUrl => SiteLink + "ajaxik.php";
 
         // http://www.lostfilm.tv/new
-        private string DiscoveryUrl { get { return SiteLink + "new"; } }
+        private string DiscoveryUrl => SiteLink + "new";
 
         // http://www.lostfilm.tv/search?q=breaking+bad
-        private string SearchUrl { get { return SiteLink + "search"; } }
+        private string SearchUrl => SiteLink + "search";
 
         // PlayEpisode function produce urls like this:
         // https://www.lostfilm.tv/v_search.php?c=119&s=5&e=16
-        private string ReleaseUrl { get { return SiteLink + "v_search.php"; } }
+        private string ReleaseUrl => SiteLink + "v_search.php";
 
 
         internal class TrackerUrlDetails
@@ -63,6 +62,7 @@ namespace Jackett.Common.Indexers
                 episode = match.Groups["episode"].Value.TrimStart('0');
             }
 
+            // TODO: see if query.GetEpisodeString() is sufficient
             internal string GetEpisodeString()
             {
                 var result = string.Empty;
@@ -83,8 +83,8 @@ namespace Jackett.Common.Indexers
 
         private new ConfigurationDataCaptchaLogin configData
         {
-            get { return (ConfigurationDataCaptchaLogin)base.configData; }
-            set { base.configData = value; }
+            get => (ConfigurationDataCaptchaLogin)base.configData;
+            set => base.configData = value;
         }
 
         public LostFilm(IIndexerConfigurationService configService, WebClient wc, Logger l, IProtectionService ps)
@@ -107,12 +107,13 @@ namespace Jackett.Common.Indexers
         {
             // looks like after some failed login attempts there's a captcha
             var loginPage = await RequestStringWithCookies(LoginUrl, string.Empty);
-            CQ dom = loginPage.Content;
-            var qCaptchaImg = dom.Find("img#captcha_pictcha").First();
-            if (qCaptchaImg.Length == 1)
+            var parser = new HtmlParser();
+            var document = parser.ParseDocument(loginPage.Content);
+            var qCaptchaImg = document.QuerySelector("img#captcha_pictcha");
+            if (qCaptchaImg != null)
             {
-                var CaptchaUrl = SiteLink + qCaptchaImg.Attr("src");
-                var captchaImage = await RequestBytesWithCookies(CaptchaUrl, loginPage.Cookies);
+                var captchaUrl = SiteLink + qCaptchaImg.GetAttribute("src");
+                var captchaImage = await RequestBytesWithCookies(captchaUrl, loginPage.Cookies);
                 configData.CaptchaImage.Value = captchaImage.Content;
             }
             else
@@ -607,10 +608,12 @@ namespace Jackett.Common.Indexers
 
         private async Task<List<ReleaseInfo>> FetchTrackerReleases(TrackerUrlDetails details)
         {
-            var queryCollection = new NameValueCollection();
-            queryCollection.Add("c", details.seriesId);
-            queryCollection.Add("s", details.season);
-            queryCollection.Add("e", string.IsNullOrEmpty(details.episode) ? "999" : details.episode); // 999 is a synonym for the whole serie
+            var queryCollection = new NameValueCollection
+            {
+                { "c", details.seriesId },
+                { "s", details.season },
+                { "e", string.IsNullOrEmpty(details.episode) ? "999" : details.episode } // 999 is a synonym for the whole serie
+            };
             var url = ReleaseUrl + "?" + queryCollection.GetQueryString();
 
             logger.Debug("FetchTrackerReleases: " + url);
@@ -670,12 +673,12 @@ namespace Jackett.Common.Indexers
                 {
                     try
                     {
-                        var release = new ReleaseInfo();
-
-                        release.Category = new int[] { TorznabCatType.TV.ID };
 
                         var detailsInfo = row.QuerySelector("div.inner-box--desc").TextContent;
                         var releaseDetails = parseReleaseDetailsRegex.Match(detailsInfo);
+
+                        // ReSharper states "Expression is always false"
+                        // TODO Refactor to get the intended operation
                         if (releaseDetails == null)
                         {
                             throw new FormatException("Failed to map release details string: " + detailsInfo);
@@ -696,8 +699,11 @@ namespace Jackett.Common.Indexers
                         quality = Regex.Replace(quality, "1080 ", "1080p ", RegexOptions.IgnoreCase);
                         quality = Regex.Replace(quality, "720 ", "720p ", RegexOptions.IgnoreCase);
 
-                        var techComponents = new string[] {
-                            "rus", quality, "(LostFilm)"
+                        var techComponents = new[]
+                        {
+                            "rus",
+                            quality,
+                            "(LostFilm)"
                         };
                         var techInfo = string.Join(" ", techComponents.Where(s => !string.IsNullOrEmpty(s)));
 
@@ -706,19 +712,32 @@ namespace Jackett.Common.Indexers
                         var titleComponents = new string[] {
                             serieTitle, details.GetEpisodeString(), episodeName, techInfo
                         };
-                        release.Title = string.Join(" - ", titleComponents.Where(s => !string.IsNullOrEmpty(s)));
-
                         var downloadLink = row.QuerySelector("div.inner-box--link > a");
-                        release.Link = new Uri(downloadLink.GetAttribute("href"));
-                        release.Guid = release.Link;
-
                         var sizeString = releaseDetails.Groups["size"].Value.ToUpper();
                         sizeString = sizeString.Replace("ТБ", "TB"); // untested
                         sizeString = sizeString.Replace("ГБ", "GB");
                         sizeString = sizeString.Replace("МБ", "MB");
                         sizeString = sizeString.Replace("КБ", "KB"); // untested
-                        release.Size = ReleaseInfo.GetBytes(sizeString);
+                        var link = new Uri(downloadLink.GetAttribute("href"));
 
+                        // TODO this feels sparse compared to other trackers. Expand later
+                        var release = new ReleaseInfo
+                        {
+                            Category = new[] { TorznabCatType.TV.ID },
+                            Title = string.Join(" - ", titleComponents.Where(s => !string.IsNullOrEmpty(s))),
+                            Link = link,
+                            Guid = link,
+                            Size = ReleaseInfo.GetBytes(sizeString),
+                            // add missing torznab fields not available from results
+                            Seeders = 1,
+                            Peers = 2,
+                            DownloadVolumeFactor = 0,
+                            UploadVolumeFactor = 1,
+                            MinimumRatio = 1,
+                            MinimumSeedTime = 172800 // 48 hours
+                        };
+
+                        // TODO Other trackers don't have this log line. Remove or add to other trackers?
                         logger.Debug("> Add: " + release.Title);
                         releases.Add(release);
                     }

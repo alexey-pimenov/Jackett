@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -39,7 +39,7 @@ namespace Jackett.Server.Controllers
             }
 
             var indexerId = parameters["indexerId"] as string;
-            if (indexerId.IsNullOrEmptyOrWhitespace())
+            if (string.IsNullOrWhiteSpace(indexerId))
                 return;
 
             var indexerService = indexerController.IndexerService;
@@ -146,10 +146,7 @@ namespace Jackett.Server.Controllers
         [HttpDelete]
         [TypeFilter(typeof(RequiresIndexer))]
         [Route("{indexerid}")]
-        public void Delete()
-        {
-            IndexerService.DeleteIndexer(CurrentIndexer.ID);
-        }
+        public void Delete() => IndexerService.DeleteIndexer(CurrentIndexer.ID);
 
         // TODO
         // This should go to ServerConfigurationController

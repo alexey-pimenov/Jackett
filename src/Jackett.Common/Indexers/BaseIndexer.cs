@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using AutoMapper;
 using Jackett.Common.Models;
@@ -18,10 +19,7 @@ namespace Jackett.Common.Indexers
 {
     public abstract class BaseIndexer : IIndexer
     {
-        public static string GetIndexerID(Type type)
-        {
-            return type.Name.ToLowerInvariant().StripNonAlphaNumeric();
-        }
+        public static string GetIndexerID(Type type) => type.Name.ToLowerInvariant().StripNonAlphaNumeric();
 
         public string SiteLink { get; protected set; }
         public virtual string[] LegacySiteLinks { get; protected set; }
@@ -31,7 +29,7 @@ namespace Jackett.Common.Indexers
         public string DisplayName { get; protected set; }
         public string Language { get; protected set; }
         public string Type { get; protected set; }
-        public virtual string ID { get { return GetIndexerID(GetType()); } }
+        public virtual string ID => GetIndexerID(GetType());
 
         [JsonConverter(typeof(EncodingJsonConverter))]
         public Encoding Encoding { get; protected set; }
@@ -45,13 +43,13 @@ namespace Jackett.Common.Indexers
 
         protected string CookieHeader
         {
-            get { return configData.CookieHeader.Value; }
-            set { configData.CookieHeader.Value = value; }
+            get => configData.CookieHeader.Value;
+            set => configData.CookieHeader.Value = value;
         }
 
         public string LastError
         {
-            get { return configData.LastError.Value; }
+            get => configData.LastError.Value;
             set
             {
                 var SaveNeeded = configData.LastError.Value != value && IsConfigured;
@@ -82,10 +80,7 @@ namespace Jackett.Common.Indexers
                 LoadValuesFromJson(null);
         }
 
-        public virtual Task<ConfigurationData> GetConfigurationForSetup()
-        {
-            return Task.FromResult<ConfigurationData>(configData);
-        }
+        public virtual Task<ConfigurationData> GetConfigurationForSetup() => Task.FromResult<ConfigurationData>(configData);
 
         public virtual void ResetBaseConfig()
         {
@@ -93,10 +88,7 @@ namespace Jackett.Common.Indexers
             IsConfigured = false;
         }
 
-        public virtual void SaveConfig()
-        {
-            configurationService.Save(this as IIndexer, configData.ToJson(protectionService, forDisplay: false));
-        }
+        public virtual void SaveConfig() => configurationService.Save(this as IIndexer, configData.ToJson(protectionService, forDisplay: false));
 
         protected void LoadLegacyCookieConfig(JToken jsonConfig)
         {
@@ -273,10 +265,9 @@ namespace Jackett.Common.Indexers
             if (query.Categories.Length == 0)
                 return results;
 
-            var filteredResults = results.Where(result =>
-            {
-                return result.Category.IsEmptyOrNull() || query.Categories.Intersect(result.Category).Any() || TorznabCatType.QueryContainsParentCategory(query.Categories, result.Category);
-            });
+            var filteredResults = results.Where(
+                result => result.Category?.Any() != true || query.Categories.Intersect(result.Category).Any() ||
+                          TorznabCatType.QueryContainsParentCategory(query.Categories, result.Category));
 
             return filteredResults;
         }
@@ -359,6 +350,9 @@ namespace Jackett.Common.Indexers
 
     public abstract class BaseWebIndexer : BaseIndexer, IWebIndexer
     {
+        // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
+        private readonly Regex _cookieRegex = new Regex(@"([^\(\)<>@,;:\\""/\[\]\?=\{\}\s]+)=([^,;\\""\s]+)");
+
         protected BaseWebIndexer(string name, string link, string description, IIndexerConfigurationService configService, WebClient client, Logger logger, ConfigurationData configData, IProtectionService p, TorznabCapabilities caps = null, string downloadBase = null)
             : base(name, link, description, configService, logger, configData, p)
         {
@@ -372,10 +366,7 @@ namespace Jackett.Common.Indexers
 
         // minimal constructor used by e.g. cardigann generic indexer
         protected BaseWebIndexer(IIndexerConfigurationService configService, WebClient client, Logger logger, IProtectionService p)
-            : base("", "/", "", configService, logger, null, p)
-        {
-            webclient = client;
-        }
+            : base("", "/", "", configService, logger, null, p) => webclient = client;
 
         public virtual async Task<byte[]> Download(Uri link)
         {
@@ -618,17 +609,16 @@ namespace Jackett.Common.Indexers
 
         private string ResolveCookies(string incomingCookies = "")
         {
-            var redirRequestCookies = (CookieHeader != null && CookieHeader != "" ? CookieHeader + " " : "") + incomingCookies;
-            var expression = new System.Text.RegularExpressions.Regex(@"([^\\,;\s]+)=([^=\\,;\s]*)");
-            var cookieDIctionary = new Dictionary<string, string>();
-            var matches = expression.Match(redirRequestCookies);
+            var redirRequestCookies = string.IsNullOrWhiteSpace(CookieHeader) ? incomingCookies : CookieHeader + " " + incomingCookies;
+            var cookieDictionary = new Dictionary<string, string>();
+            var matches = _cookieRegex.Match(redirRequestCookies);
             while (matches.Success)
             {
                 if (matches.Groups.Count > 2)
-                    cookieDIctionary[matches.Groups[1].Value] = matches.Groups[2].Value;
+                    cookieDictionary[matches.Groups[1].Value] = matches.Groups[2].Value;
                 matches = matches.NextMatch();
             }
-            return string.Join("; ", cookieDIctionary
+            return string.Join("; ", cookieDictionary
                 .Where(kv => kv.Key != "cf_use_ob" && kv.Key != "cf_ob_info") // These cookies are causing BadGateway errors, so we drop them, see issue #2306
                 .Select(kv => kv.Key.ToString() + "=" + kv.Value.ToString()).ToArray());
         }
@@ -671,10 +661,7 @@ namespace Jackett.Common.Indexers
             }
         }
 
-        protected List<string> GetAllTrackerCategories()
-        {
-            return categoryMapping.Select(x => x.TrackerCategory).ToList();
-        }
+        protected List<string> GetAllTrackerCategories() => categoryMapping.Select(x => x.TrackerCategory).ToList();
 
         protected void AddCategoryMapping(string trackerCategory, TorznabCategory newznabCategory, string trackerCategoryDesc = null)
         {
@@ -689,6 +676,7 @@ namespace Jackett.Common.Indexers
             // add 1:1 categories
             if (trackerCategoryDesc != null && trackerCategory != null)
             {
+                //TODO convert to int.TryParse() to avoid using throw as flow control
                 try
                 {
                     var trackerCategoryInt = int.Parse(trackerCategory);
@@ -703,10 +691,7 @@ namespace Jackett.Common.Indexers
             }
         }
 
-        protected void AddCategoryMapping(int trackerCategory, TorznabCategory newznabCategory, string trackerCategoryDesc = null)
-        {
-            AddCategoryMapping(trackerCategory.ToString(), newznabCategory, trackerCategoryDesc);
-        }
+        protected void AddCategoryMapping(int trackerCategory, TorznabCategory newznabCategory, string trackerCategoryDesc = null) => AddCategoryMapping(trackerCategory.ToString(), newznabCategory, trackerCategoryDesc);
 
         protected void AddMultiCategoryMapping(TorznabCategory newznabCategory, params int[] trackerCategories)
         {

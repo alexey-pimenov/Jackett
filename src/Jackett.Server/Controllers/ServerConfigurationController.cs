@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -56,10 +56,7 @@ namespace Jackett.Server.Controllers
         }
 
         [HttpPost]
-        public void Update()
-        {
-            updater.CheckForUpdatesNow();
-        }
+        public void Update() => updater.CheckForUpdatesNow();
 
         [HttpGet]
         public Common.Models.DTO.ServerConfig Config()
@@ -202,9 +199,6 @@ namespace Jackett.Server.Controllers
         }
 
         [HttpGet]
-        public List<CachedLog> Logs()
-        {
-            return logCache.Logs;
-        }
+        public List<CachedLog> Logs() => logCache.Logs;
     }
 }

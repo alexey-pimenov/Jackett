@@ -1,7 +1,7 @@
-﻿using System;
 using Jackett.Common.Services.Interfaces;
 using NLog;
 #if !NET461
+using System;
 using Mono.Unix;
 #endif
 
@@ -11,10 +11,7 @@ namespace Jackett.Server.Services
     {
         private readonly Logger logger;
 
-        public FilePermissionService(Logger l)
-        {
-            logger = l;
-        }
+        public FilePermissionService(Logger l) => logger = l;
 
         public void MakeFileExecutable(string path)
         {

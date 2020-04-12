@@ -13,15 +13,16 @@ using Jackett.Common.Services.Interfaces;
 using Jackett.Common.Utils;
 using Newtonsoft.Json.Linq;
 using NLog;
+using WebClient = Jackett.Common.Utils.Clients.WebClient;
 
 namespace Jackett.Common.Indexers.Abstract
 {
     public abstract class GazelleTracker : BaseWebIndexer
     {
-        protected string LoginUrl { get { return SiteLink + "login.php"; } }
-        protected string APIUrl { get { return SiteLink + "ajax.php"; } }
-        protected string DownloadUrl { get { return SiteLink + "torrents.php?action=download&usetoken=" + (useTokens ? "1" : "0") + "&id="; } }
-        protected string DetailsUrl { get { return SiteLink + "torrents.php?torrentid="; } }
+        protected string LoginUrl => SiteLink + "login.php";
+        protected string APIUrl => SiteLink + "ajax.php";
+        protected string DownloadUrl => SiteLink + "torrents.php?action=download&usetoken=" + (useTokens ? "1" : "0") + "&id=";
+        protected string DetailsUrl => SiteLink + "torrents.php?torrentid=";
         protected bool supportsFreeleechTokens;
         protected bool imdbInTags;
         protected bool supportsCategories = true; // set to false if the tracker doesn't include the categories in the API search results
@@ -30,19 +31,21 @@ namespace Jackett.Common.Indexers.Abstract
 
         private new ConfigurationDataBasicLogin configData
         {
-            get { return (ConfigurationDataBasicLogin)base.configData; }
-            set { base.configData = value; }
+            get => (ConfigurationDataBasicLogin)base.configData;
+            set => base.configData = value;
         }
 
-        public GazelleTracker(IIndexerConfigurationService configService, Utils.Clients.WebClient webClient, Logger logger, IProtectionService protectionService, string name, string desc, string link, bool supportsFreeleechTokens, bool imdbInTags = false, bool has2Fa = false)
-            : base(name: name,
-                description: desc,
+        protected GazelleTracker(string name, string link, string description, IIndexerConfigurationService configService,
+                                 WebClient client, Logger logger, IProtectionService p, TorznabCapabilities caps,
+                                 bool supportsFreeleechTokens, bool imdbInTags = false, bool has2Fa = false)
+            : base(name,
+                description: description,
                 link: link,
-                caps: new TorznabCapabilities(),
+                caps: caps,
                 configService: configService,
-                client: webClient,
+                client: client,
                 logger: logger,
-                p: protectionService,
+                p: p,
                 configData: new ConfigurationDataBasicLogin())
         {
             Encoding = Encoding.UTF8;
@@ -138,10 +141,7 @@ namespace Jackett.Common.Indexers.Abstract
         }
 
         // hook to adjust the search term
-        protected virtual string GetSearchTerm(TorznabQuery query)
-        {
-            return query.GetQueryString();
-        }
+        protected virtual string GetSearchTerm(TorznabQuery query) => query.GetQueryString();
 
         protected override async Task<IEnumerable<ReleaseInfo>> PerformQuery(TorznabQuery query)
         {
@@ -149,12 +149,13 @@ namespace Jackett.Common.Indexers.Abstract
             var searchString = GetSearchTerm(query);
 
             var searchUrl = APIUrl;
-            var queryCollection = new NameValueCollection();
-
-            queryCollection.Add("action", "browse");
-            //queryCollection.Add("group_results", "0"); # results won't include all information
-            queryCollection.Add("order_by", "time");
-            queryCollection.Add("order_way", "desc");
+            var queryCollection = new NameValueCollection
+            {
+                { "action", "browse" },
+                //{"group_results", "0"}, # results won't include all information
+                { "order_by", "time" },
+                { "order_way", "desc" }
+            };
 
 
             if (!string.IsNullOrWhiteSpace(query.ImdbID))
@@ -192,8 +193,7 @@ namespace Jackett.Common.Indexers.Abstract
             searchUrl += "?" + queryCollection.GetQueryString();
 
             var response = await RequestStringWithCookiesAndRetry(searchUrl);
-
-            if (response.IsRedirect || query.IsTest)
+            if (response.IsRedirect)
             {
                 // re-login
                 await ApplyConfiguration(null);
@@ -212,34 +212,34 @@ namespace Jackett.Common.Indexers.Abstract
                     var tags = r["tags"].ToList();
                     var groupYear = (string)r["groupYear"];
                     var releaseType = (string)r["releaseType"];
-
-                    var release = new ReleaseInfo();
-
-                    release.PublishDate = groupTime;
-
-                    if (!string.IsNullOrEmpty(cover))
-                        release.BannerUrl = new Uri(cover);
-
-                    release.Title = "";
+                    var title = new StringBuilder();
                     if (!string.IsNullOrEmpty(artist))
-                        release.Title += artist + " - ";
-                    release.Title += groupName;
+                        title.Append(artist + " - ");
+                    title.Append(groupName);
                     if (!string.IsNullOrEmpty(groupYear) && groupYear != "0")
-                        release.Title += " [" + groupYear + "]";
+                        title.Append(" [" + groupYear + "]");
                     if (!string.IsNullOrEmpty(releaseType) && releaseType != "Unknown")
-                        release.Title += " [" + releaseType + "]";
+                        title.Append(" [" + releaseType + "]");
+                    var description = tags?.Any() == true && !string.IsNullOrEmpty(tags[0].ToString())
+                        ? "Tags: " + string.Join(", ", tags) + "\n"
+                        : null;
+                    Uri banner = null;
+                    if (!string.IsNullOrEmpty(cover))
+                        banner = new Uri(cover);
+                    var release = new ReleaseInfo
+                    {
+                        PublishDate = groupTime,
+                        Title = title.ToString(),
+                        Description = description,
+                        BannerUrl = banner
+                    };
 
-                    release.Description = "";
-                    if (tags != null && tags.Count > 0 && (string)tags[0] != "")
-                        release.Description += "Tags: " + string.Join(", ", tags) + "\n";
 
                     if (imdbInTags)
                     {
-                        var imdbTags = tags
-                            .Select(tag => ParseUtil.GetImdbID((string)tag))
-                            .Where(tag => tag != null);
-                        if (imdbTags.Count() == 1)
-                            release.Imdb = imdbTags.First();
+                        release.Imdb = tags
+                                       .Select(tag => ParseUtil.GetImdbID((string)tag))
+                                       .Where(tag => tag != null).FirstIfSingleOrDefault();
                     }
 
                     if (r["torrents"] is JArray)
@@ -269,10 +269,7 @@ namespace Jackett.Common.Indexers.Abstract
         }
 
         // hook to add/modify the parsed information, return false to exclude the torrent from the results
-        protected virtual bool ReleaseInfoPostParse(ReleaseInfo release, JObject torrent, JObject result)
-        {
-            return true;
-        }
+        protected virtual bool ReleaseInfoPostParse(ReleaseInfo release, JObject torrent, JObject result) => true;
 
         private void FillReleaseInfoFromJson(ReleaseInfo release, JObject torrent)
         {

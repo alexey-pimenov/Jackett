@@ -19,7 +19,7 @@ namespace Jackett.Common.Indexers
 {
     internal class HorribleSubs : BaseWebIndexer
     {
-        private string ApiEndpoint { get { return SiteLink + "api.php"; } }
+        private string ApiEndpoint => SiteLink + "api.php";
 
         public override string[] LegacySiteLinks { get; protected set; } = new string[] {
             "http://horriblesubs.info/"
@@ -111,9 +111,10 @@ namespace Jackett.Common.Indexers
             var ResultParser = new HtmlParser();
             var releases = new List<ReleaseInfo>();
             var searchString = query.GetQueryString();
-            var queryCollection = new NameValueCollection();
-
-            queryCollection.Add("method", "getlatest");
+            var queryCollection = new NameValueCollection
+            {
+                { "method", "getlatest" }
+            };
 
             var searchUrl = ApiEndpoint + "?" + queryCollection.GetQueryString();
             var response = await RequestStringWithCookiesAndRetry(searchUrl, string.Empty);

@@ -1,4 +1,4 @@
-﻿---
+---
   site: crazyscorner
   name: Crazy's Corner
   description: "Crazy's Corner is a Private Torrent Tracker for MUSIC"
@@ -6,7 +6,7 @@
   type: private
   encoding: UTF-8
   links:
-    - http://crazys-corner.info/
+    - http://crazys-corner.info/ # site does not support https ERR_CONNECTION_REFUSED
 
   caps:
     categorymappings:
@@ -129,11 +129,9 @@
       details:
         selector: a[href*="/details.php?id="]
         attribute: href
+      # rows have download but site requires thanks so we use dl from details
       download:
         selector: a[href*="/details.php?id="]
-        attribute: href
-      magnet:
-        selector: a[href^="magnet:?xt="]
         attribute: href
       banner:
         selector: img[src*="/torrents/images/"]
@@ -156,6 +154,7 @@
       downloadvolumefactor:
         case:
           img[src$="_flags/freedownload.gif"]: 0
+          img[src$="_flags/silverdownload.gif"]: 0.5
           "*": 1
       uploadvolumefactor:
         case:

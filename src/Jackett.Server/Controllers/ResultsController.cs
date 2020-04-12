@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -25,10 +25,7 @@ namespace Jackett.Server.Controllers
     {
         public IServerService serverService;
 
-        public RequiresApiKey(IServerService ss)
-        {
-            serverService = ss;
-        }
+        public RequiresApiKey(IServerService ss) => serverService = ss;
 
         public void OnActionExecuting(ActionExecutingContext context)
         {
@@ -74,7 +71,7 @@ namespace Jackett.Server.Controllers
             }
 
             var indexerId = parameters["indexerId"] as string;
-            if (indexerId.IsNullOrEmptyOrWhitespace())
+            if (string.IsNullOrWhiteSpace(indexerId))
             {
                 indexerController.CurrentIndexer = null;
                 context.Result = ResultsController.GetErrorActionResult(context.RouteData, HttpStatusCode.NotFound, 201, "Indexer is not specified (empty value)");
@@ -433,10 +430,7 @@ namespace Jackett.Server.Controllers
         }
 
         [Route("[action]/{ignored?}")]
-        public IActionResult GetErrorXML(int code, string description)
-        {
-            return Content(CreateErrorXML(code, description), "application/xml", Encoding.UTF8);
-        }
+        public IActionResult GetErrorXML(int code, string description) => Content(CreateErrorXML(code, description), "application/xml", Encoding.UTF8);
 
         public static string CreateErrorXML(int code, string description)
         {

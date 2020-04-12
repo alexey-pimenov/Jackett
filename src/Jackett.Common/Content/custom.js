@@ -51,7 +51,12 @@ $(document).ready(function () {
 });
 
 function openSearchIfNecessary() {
-    const hashArgs = location.hash.substring(1).split('&').reduce((prev, item) => Object.assign({ [item.split('=')[0]]: (item.split('=').length < 2 ? undefined : decodeURIComponent(item.split('=')[1])) }, prev), {});
+    const hashArgs = location.hash.substring(1).split('&').reduce((prev, item) =>
+      Object.assign({
+        [item.split('=')[0]]: (item.split('=').length < 2 ?
+          undefined :
+          decodeURIComponent(item.split('=')[1].replace(/\+/g,'%20')))
+      }, prev), {});
     if ("search" in hashArgs) {
         showSearch(hashArgs.tracker, hashArgs.search, hashArgs.category);
     }
@@ -177,6 +182,7 @@ function displayConfiguredIndexersList(indexers) {
     indexersTable.find("table").dataTable(
          {
              "stateSave": true,
+             "stateDuration": 0,
              "pageLength": -1,
              "lengthMenu": [[10, 20, 50, 100, 250, 500, -1], [10, 20, 50, 100, 250, 500, "All"]],
              "order": [[0, "asc"]],
@@ -236,9 +242,9 @@ function displayUnconfiguredIndexersList() {
 			        }).fail(function (data) {
                 if(data.responseJSON.error !== undefined) {
                   var indexEnd = 2048 - "https://github.com/Jackett/Jackett/issues/new?title=[".length - indexerId.length - "] ".length - " (Config)".length; // keep url <= 2k #5104
-                  doNotify("An error occured while configuring this indexer<br /><b>" + data.responseJSON.error.substring(0, indexEnd) + "</b><br /><i><a href=\"https://github.com/Jackett/Jackett/issues/new?title=[" + indexerId + "] " + data.responseJSON.error.substring(0, indexEnd) + " (Config)\" target=\"_blank\">Click here to open an issue on GitHub for this indexer.</a><i>", "danger", "glyphicon glyphicon-alert", false);
+                  doNotify("An error occurred while configuring this indexer<br /><b>" + data.responseJSON.error.substring(0, indexEnd) + "</b><br /><i><a href=\"https://github.com/Jackett/Jackett/issues/new?title=[" + indexerId + "] " + data.responseJSON.error.substring(0, indexEnd) + " (Config)\" target=\"_blank\">Click here to open an issue on GitHub for this indexer.</a><i>", "danger", "glyphicon glyphicon-alert", false);
                 } else {
-                  doNotify("An error occured while configuring this indexer, is Jackett server running ?", "danger", "glyphicon glyphicon-alert");
+                  doNotify("An error occurred while configuring this indexer, is Jackett server running ?", "danger", "glyphicon glyphicon-alert");
                 }
 			        });
                 });
@@ -248,6 +254,7 @@ function displayUnconfiguredIndexersList() {
     indexersTable.find("table").DataTable(
         {
             "stateSave": true,
+            "stateDuration": 0,
             "fnStateSaveParams": function (oSettings, sValue) {
                 sValue.search.search = ""; // don't save the search filter content
                 return sValue;
@@ -460,9 +467,9 @@ function testIndexer(id, notifyResult) {
       updateTestState(id, "error", data.error, indexers);
       if(data.responseJSON.error !== undefined && notifyResult) {
         var indexEnd = 2048 - "https://github.com/Jackett/Jackett/issues/new?title=[".length - id.length - "] ".length - " (Test)".length; // keep url <= 2k #5104
-        doNotify("An error occured while testing this indexer<br /><b>" + data.responseJSON.error.substring(0, indexEnd) + "</b><br /><i><a href=\"https://github.com/Jackett/Jackett/issues/new?title=[" + id + "] " + data.responseJSON.error.substring(0, indexEnd) + " (Test)\" target=\"_blank\">Click here to open an issue on GitHub for this indexer.</a><i>", "danger", "glyphicon glyphicon-alert", false);
+        doNotify("An error occurred while testing this indexer<br /><b>" + data.responseJSON.error.substring(0, indexEnd) + "</b><br /><i><a href=\"https://github.com/Jackett/Jackett/issues/new?title=[" + id + "] " + data.responseJSON.error.substring(0, indexEnd) + " (Test)\" target=\"_blank\">Click here to open an issue on GitHub for this indexer.</a><i>", "danger", "glyphicon glyphicon-alert", false);
       } else {
-        doNotify("An error occured while testing indexers, please take a look at indexers with failed test for more informations.", "danger", "glyphicon glyphicon-alert");
+        doNotify("An error occurred while testing indexers, please take a look at indexers with failed test for more informations.", "danger", "glyphicon glyphicon-alert");
       }
     });
 }
@@ -672,9 +679,9 @@ function populateSetupForm(indexerId, name, config, caps, link, alternativesitel
         }).fail(function (data) {
           if(data.responseJSON.error !== undefined) {
             var indexEnd = 2048 - "https://github.com/Jackett/Jackett/issues/new?title=[".length - indexerId.length - "] ".length - " (Config)".length; // keep url <= 2k #5104
-            doNotify("An error occured while updating this indexer<br /><b>" + data.responseJSON.error.substring(0, indexEnd) + "</b><br /><i><a href=\"https://github.com/Jackett/Jackett/issues/new?title=[" + indexerId + "] " + data.responseJSON.error.substring(0, indexEnd) + " (Config)\" target=\"_blank\">Click here to open an issue on GitHub for this indexer.</a><i>", "danger", "glyphicon glyphicon-alert", false);
+            doNotify("An error occurred while updating this indexer<br /><b>" + data.responseJSON.error.substring(0, indexEnd) + "</b><br /><i><a href=\"https://github.com/Jackett/Jackett/issues/new?title=[" + indexerId + "] " + data.responseJSON.error.substring(0, indexEnd) + " (Config)\" target=\"_blank\">Click here to open an issue on GitHub for this indexer.</a><i>", "danger", "glyphicon glyphicon-alert", false);
           } else {
-            doNotify("An error occured while updating this indexer, request to Jackett server failed, is server running ?", "danger", "glyphicon glyphicon-alert");
+            doNotify("An error occurred while updating this indexer, request to Jackett server failed, is server running ?", "danger", "glyphicon glyphicon-alert");
           }
         }).always(function () {
             $goButton.html(originalBtnText);
@@ -775,7 +782,7 @@ function updateReleasesRow(row)
 }
 
 function showSearch(selectedIndexer, query, category) {
-    var selectedIndexers = []
+    var selectedIndexers = [];
     if (selectedIndexer)
         selectedIndexers = selectedIndexer.split(",");
     $('#select-indexer-modal').remove();
@@ -842,7 +849,11 @@ function showSearch(selectedIndexer, query, category) {
             Tracker: releaseDialog.find('#searchTracker').val()
         };
 
-        window.location.hash = $.param({ search: queryObj.Query, tracker: queryObj.Tracker.join(","), category: queryObj.Category.join(",") });
+        window.location.hash = Object.entries({
+          search: encodeURIComponent(queryObj.Query).replace(/%20/g,'+'),
+          tracker: queryObj.Tracker.join(","),
+          category: queryObj.Category.join(",")
+        }).map(([k, v], i) => k + '=' + v).join('&');
 
         $('#jackett-search-perform').html($('#spinner').html());
         $('#searchResults div.dataTables_filter input').val("");
@@ -859,7 +870,7 @@ function showSearch(selectedIndexer, query, category) {
             $('#jackett-search-perform').html($('#search-button-ready').html());
             var searchResults = $('#searchResults');
             searchResults.empty();
-            var datatable = updateSearchResultTable(searchResults, data).search('').columns().search('').draw();
+            updateSearchResultTable(searchResults, data).search('').columns().search('').draw();
             searchResults.find('div.dataTables_filter input').focusWithoutScrolling();
         }).fail(function () {
             $('#jackett-search-perform').html($('#search-button-ready').html());
@@ -868,7 +879,7 @@ function showSearch(selectedIndexer, query, category) {
     });
 
     var searchTracker = releaseDialog.find("#searchTracker");
-    var searchCategory = releaseDialog.find('#searchCategory')
+    var searchCategory = releaseDialog.find('#searchCategory');
     searchCategory.multiselect({
         maxHeight: 400,
         enableFiltering: true,
@@ -916,7 +927,7 @@ $.fn.dataTable.ext.search = [
     function (settings, data, dataIndex) {
         if (settings.sInstance != "jackett-search-results-datatable")
             return true;
-        var deadfiltercheckbox = $(settings.nTableWrapper).find(".dataTables_deadfilter input")
+        var deadfiltercheckbox = $(settings.nTableWrapper).find(".dataTables_deadfilter input");
         if (!deadfiltercheckbox.length) {
             return true;
         }
@@ -925,7 +936,7 @@ $.fn.dataTable.ext.search = [
             return false;
         return true;
     }
-]
+];
 
 function updateSearchResultTable(element, results) {
     var resultsTemplate = Handlebars.compile($("#jackett-search-results").html());
@@ -946,6 +957,7 @@ function updateSearchResultTable(element, results) {
 
             "dom": "lfr<\"dataTables_deadfilter\">tip",
             "stateSave": true,
+            "stateDuration": 0,
             "bAutoWidth": false,
             "pageLength": 20,
             "lengthMenu": [[10, 20, 50, 100, 250, 500, -1], [10, 20, 50, 100, 250, 500, "All"]],
@@ -978,6 +990,34 @@ function updateSearchResultTable(element, results) {
             ],
             fnPreDrawCallback: function () {
                 var table = this;
+
+                var inputSearch = element.find("input[type=search]");
+                if (!inputSearch.attr("custom")) {
+                  var newInputSearch = inputSearch.clone();
+                  newInputSearch.attr("custom", "true");
+                  newInputSearch.attr("data-toggle", "tooltip");
+                  newInputSearch.attr("title", "Search query consists of several keywords.\nKeyword starting with \"-\" is considered a negative match.");
+                  newInputSearch.on("input", function () {
+                    var newKeywords = [];
+                    var filterTextKeywords = $(this).val().split(" ");
+                    $.each(filterTextKeywords, function(index, keyword) {
+                      if (keyword === "" || keyword === "+" || keyword === "-")
+                        return;
+                      var newKeyword;
+                      if (keyword.startsWith("+"))
+                        newKeyword = $.fn.dataTable.util.escapeRegex(keyword.substring(1));
+                      else if (keyword.startsWith("-"))
+                        newKeyword = "^((?!" + $.fn.dataTable.util.escapeRegex(keyword.substring(1)) + ").)*$";
+                      else
+                        newKeyword = $.fn.dataTable.util.escapeRegex(keyword);
+                      newKeywords.push(newKeyword);
+                    });
+                    var filterText = newKeywords.join(" ");
+                    table.api().search(filterText, true, true).draw();
+                  });
+                  inputSearch.replaceWith(newInputSearch);
+                }
+
                 var deadfilterdiv = element.find(".dataTables_deadfilter");
                 var deadfiltercheckbox = deadfilterdiv.find("input");
                 if (!deadfiltercheckbox.length) {
@@ -1073,6 +1113,7 @@ function bindUIButtons() {
             table.DataTable(
                  {
                      "stateSave": true,
+                     "stateDuration": 0,
                      "bAutoWidth": false,
                      "pageLength": 20,
                      "lengthMenu": [[10, 20, 50, -1], [10, 20, 50, "All"]],

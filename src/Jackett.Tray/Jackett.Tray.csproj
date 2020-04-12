@@ -1,11 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
-  
+
   <PropertyGroup>
-    <TargetFrameworks>netcoreapp3.1</TargetFrameworks>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
     <OutputType>WinExe</OutputType>
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>JackettTray</AssemblyName>
     <ApplicationIcon>jackett.ico</ApplicationIcon>
+    <NoWarn />
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsAsErrors />
   </PropertyGroup>
 
   <ItemGroup>
