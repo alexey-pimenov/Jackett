@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -17,6 +18,7 @@ using NLog;
 
 namespace Jackett.Common.Indexers
 {
+    [ExcludeFromCodeCoverage]
     public class HDTorrents : BaseWebIndexer
     {
         private string SearchUrl => SiteLink + "torrents.php?";
@@ -43,7 +45,8 @@ namespace Jackett.Common.Indexers
         private new ConfigurationDataBasicLogin configData => (ConfigurationDataBasicLogin)base.configData;
 
         public HDTorrents(IIndexerConfigurationService configService, WebClient w, Logger l, IProtectionService ps)
-            : base("HD-Torrents",
+            : base(id: "hdtorrents",
+                   name: "HD-Torrents",
                    description: "HD-Torrents is a private torrent website with HD torrents and strict rules on their content.",
                    link: "https://hdts.ru/", // Domain https://hdts.ru/ seems more reliable
                    caps: new TorznabCapabilities
@@ -188,18 +191,18 @@ namespace Jackett.Common.Indexers
 
                     var dlVolumeFactor = 1.0;
                     var upVolumeFactor = 1.0;
-                    if (row.QuerySelector("img[alt=\"Free Torrent\"]") != null)
+                    if (row.QuerySelector("img[src$=\"no_ratio.png\"]") != null)
                     {
                         dlVolumeFactor = 0;
                         upVolumeFactor = 0;
                     }
-                    else if (hasFreeleech || row.QuerySelector("img[alt=\"Golden Torrent\"]") != null)
+                    else if (hasFreeleech || row.QuerySelector("img[src$=\"free.png\"]") != null)
                         dlVolumeFactor = 0;
-                    else if (row.QuerySelector("img[alt=\"Silver Torrent\"]") != null)
+                    else if (row.QuerySelector("img[src$=\"50.png\"]") != null)
                         dlVolumeFactor = 0.5;
-                    else if (row.QuerySelector("img[alt=\"Bronze Torrent\"]") != null)
+                    else if (row.QuerySelector("img[src$=\"25.png\"]") != null)
                         dlVolumeFactor = 0.75;
-                    else if (row.QuerySelector("img[alt=\"Blue Torrent\"]") != null)
+                    else if (row.QuerySelector("img[src$=\"75.png\"]") != null)
                         dlVolumeFactor = 0.25;
 
                     var imdbLink = row.QuerySelector("a[href*=\"www.imdb.com/title/\"]")?.GetAttribute("href");

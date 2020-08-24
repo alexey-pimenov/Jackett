@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -19,9 +20,7 @@ using NLog;
 
 namespace Jackett.Common.Indexers
 {
-    /// <summary>
-    /// Provider for Xthor Private French Tracker
-    /// </summary>
+    [ExcludeFromCodeCoverage]
     public class Xthor : BaseCachingWebIndexer
     {
         private static string ApiEndpoint => "https://api.xthor.tk/";
@@ -42,17 +41,17 @@ namespace Jackett.Common.Indexers
         private ConfigurationDataXthor ConfigData => (ConfigurationDataXthor)configData;
 
         public Xthor(IIndexerConfigurationService configService, Utils.Clients.WebClient w, Logger l, IProtectionService ps)
-            : base(
-                name: "Xthor",
-                description: "General French Private Tracker",
-                link: "https://xthor.tk/",
-                caps: new TorznabCapabilities(),
-                configService: configService,
-                client: w,
-                logger: l,
-                p: ps,
-                downloadBase: "https://xthor.tk/download.php?torrent=",
-                configData: new ConfigurationDataXthor())
+            : base(id: "xthor",
+                   name: "Xthor",
+                   description: "General French Private Tracker",
+                   link: "https://xthor.tk/",
+                   caps: new TorznabCapabilities(),
+                   configService: configService,
+                   client: w,
+                   logger: l,
+                   p: ps,
+                   downloadBase: "https://xthor.tk/download.php?torrent=",
+                   configData: new ConfigurationDataXthor())
         {
             Encoding = Encoding.UTF8;
             Language = "fr-fr";
@@ -230,6 +229,9 @@ namespace Jackett.Common.Indexers
                             var regex = new Regex("(?i)([\\.\\- ])MULTI([\\.\\- ])");
                             torrent.name = regex.Replace(torrent.name, "$1" + ReplaceMulti + "$2");
                         }
+
+                        // issue #8759 replace vostfr and subfrench with English
+                        if (ConfigData.Vostfr.Value) torrent.name = torrent.name.Replace("VOSTFR","ENGLISH").Replace("SUBFRENCH","ENGLISH");
 
                         var publishDate = DateTimeUtil.UnixTimestampToDateTime(torrent.added);
                         //TODO replace with download link?

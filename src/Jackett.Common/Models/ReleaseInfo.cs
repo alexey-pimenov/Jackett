@@ -24,6 +24,8 @@ namespace Jackett.Common.Models
         public long? TVDBId { get; set; }
         public long? Imdb { get; set; }
         public long? TMDb { get; set; }
+        public string Author { get; set; }
+        public string BookTitle { get; set; }
         public int? Seeders { get; set; }
         public int? Peers { get; set; }
         public Uri BannerUrl { get; set; }
@@ -37,7 +39,7 @@ namespace Jackett.Common.Models
         public IIndexer Origin;
 
 
-        private static double? GigabytesFromBytes(double? size) => size / 1024.0 / 1024.0 / 1024.0;
+        public static double? GigabytesFromBytes(double? size) => size / 1024.0 / 1024.0 / 1024.0;
         public double? Gain => Seeders * GigabytesFromBytes(Size);
 
         public ReleaseInfo()
@@ -59,6 +61,8 @@ namespace Jackett.Common.Models
             RageID = copyFrom.RageID;
             Imdb = copyFrom.Imdb;
             TMDb = copyFrom.TMDb;
+            Author = copyFrom.Author;
+            BookTitle = copyFrom.BookTitle;
             Seeders = copyFrom.Seeders;
             Peers = copyFrom.Peers;
             BannerUrl = copyFrom.BannerUrl;

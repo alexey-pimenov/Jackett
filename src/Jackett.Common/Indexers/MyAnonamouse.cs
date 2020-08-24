@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Jackett.Common.Models;
-using Jackett.Common.Models.IndexerConfig;
+using Jackett.Common.Models.IndexerConfig.Bespoke;
 using Jackett.Common.Services.Interfaces;
 using Jackett.Common.Utils;
 using Jackett.Common.Utils.Clients;
@@ -16,27 +17,24 @@ using NLog;
 
 namespace Jackett.Common.Indexers
 {
-    public class Myanonamouse : BaseWebIndexer
+    [ExcludeFromCodeCoverage]
+    public class MyAnonamouse : BaseWebIndexer
     {
-        private string LoginUrl => SiteLink + "takelogin.php";
         private string SearchUrl => SiteLink + "tor/js/loadSearchJSONbasic.php";
 
-        private new ConfigurationDataMyAnonamouse configData
-        {
-            get => (ConfigurationDataMyAnonamouse)base.configData;
-            set => base.configData = value;
-        }
+        private new ConfigurationDataMyAnonamouse configData => (ConfigurationDataMyAnonamouse)base.configData;
 
-        public Myanonamouse(IIndexerConfigurationService configService, WebClient c, Logger l, IProtectionService ps)
-            : base(name: "MyAnonamouse",
-                description: "Friendliness, Warmth and Sharing",
-                link: "https://www.myanonamouse.net/",
-                configService: configService,
-                caps: new TorznabCapabilities(),
-                client: c,
-                logger: l,
-                p: ps,
-                configData: new ConfigurationDataMyAnonamouse())
+        public MyAnonamouse(IIndexerConfigurationService configService, WebClient c, Logger l, IProtectionService ps)
+            : base(id: "myanonamouse",
+                   name: "MyAnonamouse",
+                   description: "Friendliness, Warmth and Sharing",
+                   link: "https://www.myanonamouse.net/",
+                   configService: configService,
+                   caps: new TorznabCapabilities(),
+                   client: c,
+                   logger: l,
+                   p: ps,
+                   configData: new ConfigurationDataMyAnonamouse())
         {
             Encoding = Encoding.UTF8;
             Language = "en-us";
@@ -143,15 +141,12 @@ namespace Jackett.Common.Indexers
         {
             LoadValuesFromJson(configJson);
 
-            // TODO: implement captcha
             CookieHeader = "mam_id=" + configData.MamId.Value;
             try
             {
                 var results = await PerformQuery(new TorznabQuery());
-                if (results.Count() == 0)
-                {
+                if (!results.Any())
                     throw new Exception("Your man_id did not work");
-                }
 
                 IsConfigured = true;
                 SaveConfig();
@@ -173,7 +168,7 @@ namespace Jackett.Common.Indexers
                 {"tor[text]", query.GetQueryString()},
                 {"tor[srchIn][title]", "true"},
                 {"tor[srchIn][author]", "true"},
-                {"tor[searchType]", "all"},
+                {"tor[searchType]", configData.ExcludeVip?.Value == true ? "nVIP" : "all"}, // exclude VIP torrents
                 {"tor[searchIn]", "torrents"},
                 {"tor[hash]", ""},
                 {"tor[sortType]", "default"},
@@ -181,9 +176,11 @@ namespace Jackett.Common.Indexers
                 {"thumbnails", "1"}, // gives links for thumbnail sized versions of their posters
                 //{ "posterLink", "1"}, // gives links for a full sized poster
                 //{ "dlLink", "1"}, // include the url to download the torrent
-                {"description", "1"}, // include the description
+                {"description", "1"} // include the description
                 //{"bookmarks", "0"} // include if the item is bookmarked or not
             };
+
+            // Exclude VIP torrents
 
             var catList = MapTorznabCapsToTrackers(query);
             if (catList.Any())
@@ -196,21 +193,15 @@ namespace Jackett.Common.Indexers
                 }
             }
             else
-            {
                 qParams.Add("tor[cat][]", "0");
-            }
 
             var urlSearch = SearchUrl;
             if (qParams.Count > 0)
-            {
                 urlSearch += $"?{qParams.GetQueryString()}";
-            }
 
             var response = await RequestStringWithCookiesAndRetry(urlSearch);
             if (response.Content.StartsWith("Error"))
-            {
                 throw new Exception(response.Content);
-            }
 
             try
             {
@@ -218,11 +209,8 @@ namespace Jackett.Common.Indexers
                 var sitelink = new Uri(SiteLink);
 
                 var error = jsonContent.Value<string>("error");
-                if (error != null)
-                {
-                    if (error == "Nothing returned, out of 0")
-                        return releases;
-                }
+                if (error != null && error == "Nothing returned, out of 0")
+                    return releases;
 
                 foreach (var item in jsonContent.Value<JArray>("data"))
                 {
@@ -234,22 +222,22 @@ namespace Jackett.Common.Indexers
 
                     release.Description = item.Value<string>("description");
 
-                    var author_info = item.Value<string>("author_info");
+                    var authorInfo = item.Value<string>("author_info");
                     string author = null;
-                    if (!string.IsNullOrWhiteSpace(author_info))
+                    if (!string.IsNullOrWhiteSpace(authorInfo))
                     {
-                        author_info = Regex.Unescape(author_info);
-                        var author_info_json = JObject.Parse(author_info);
-                        author = author_info_json.First.Last.Value<string>();
+                        authorInfo = Regex.Unescape(authorInfo);
+                        var authorInfoJson = JObject.Parse(authorInfo);
+                        author = authorInfoJson.First.Last.Value<string>();
                     }
                     if (author != null)
                         release.Title += " by " + author;
 
                     var flags = new List<string>();
 
-                    var lang_code = item.Value<string>("lang_code");
-                    if (!string.IsNullOrEmpty(lang_code))
-                        flags.Add(lang_code);
+                    var langCode = item.Value<string>("lang_code");
+                    if (!string.IsNullOrEmpty(langCode))
+                        flags.Add(langCode);
 
                     var filetype = item.Value<string>("filetype");
                     if (!string.IsNullOrEmpty(filetype))
@@ -257,6 +245,9 @@ namespace Jackett.Common.Indexers
 
                     if (flags.Count > 0)
                         release.Title += " [" + string.Join(" / ", flags) + "]";
+
+                    if (item.Value<int>("vip") == 1)
+                        release.Title += " [VIP]";
 
                     var category = item.Value<string>("category");
                     release.Category = MapTrackerCatToNewznab(category);
@@ -275,12 +266,8 @@ namespace Jackett.Common.Indexers
                     release.Peers = item.Value<int>("leechers") + release.Seeders;
                     var size = item.Value<string>("size");
                     release.Size = ReleaseInfo.GetBytes(size);
-                    var free = item.Value<int>("free");
 
-                    if (free == 1)
-                        release.DownloadVolumeFactor = 0;
-                    else
-                        release.DownloadVolumeFactor = 1;
+                    release.DownloadVolumeFactor = item.Value<int>("free") == 1 ? 0 : 1;
                     release.UploadVolumeFactor = 1;
 
                     releases.Add(release);

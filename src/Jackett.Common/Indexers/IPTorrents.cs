@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,6 +15,7 @@ using NLog;
 
 namespace Jackett.Common.Indexers
 {
+    [ExcludeFromCodeCoverage]
     public class IPTorrents : BaseWebIndexer
     {
         private string SearchUrl => SiteLink + "t";
@@ -21,16 +23,9 @@ namespace Jackett.Common.Indexers
         public override string[] AlternativeSiteLinks { get; protected set; } = {
             "https://iptorrents.com/",
             "https://www.iptorrents.com/",
-            "https://ipt-update.com/",
             "https://iptorrents.eu/",
             "https://nemo.iptorrents.com/",
             "https://ipt.rocks/",
-            "http://ipt.read-books.org/",
-            "http://alien.eating-organic.net/",
-            "http://kong.net-freaks.com/",
-            "http://ghost.cable-modem.org/",
-            "http://logan.unusualperson.com/",
-            "http://baywatch.workisboring.com/",
             "https://ipt.getcrazy.me/",
             "https://ipt.findnemo.net/",
             "https://ipt.beelyrics.net/",
@@ -38,13 +33,24 @@ namespace Jackett.Common.Indexers
             "https://ipt.workisboring.net/",
             "https://ipt.lol/",
             "https://ipt.cool/",
-            "https://ipt.world/",
+            "https://ipt.world/"
+        };
+
+        public override string[] LegacySiteLinks { get; protected set; } = {
+            "https://ipt-update.com/",
+            "http://ipt.read-books.org/",
+            "http://alien.eating-organic.net/",
+            "http://kong.net-freaks.com/",
+            "http://ghost.cable-modem.org/",
+            "http://logan.unusualperson.com/",
+            "http://baywatch.workisboring.com/"
         };
 
         private new ConfigurationDataCookie configData => (ConfigurationDataCookie)base.configData;
 
         public IPTorrents(IIndexerConfigurationService configService, Utils.Clients.WebClient wc, Logger l, IProtectionService ps)
-            : base("IPTorrents",
+            : base(id: "iptorrents",
+                   name: "IPTorrents",
                    description: "Always a step ahead.",
                    link: "https://iptorrents.com/",
                    caps: new TorznabCapabilities
@@ -145,7 +151,7 @@ namespace Jackett.Common.Indexers
             {
                 var results = await PerformQuery(new TorznabQuery());
                 if (!results.Any())
-                    throw new Exception("Your cookie did not work");
+                    throw new Exception("Found 0 results in the tracker");
 
                 IsConfigured = true;
                 SaveConfig();
@@ -219,6 +225,7 @@ namespace Jackett.Common.Indexers
 
                     var grabs = ParseUtil.CoerceInt(row.QuerySelector("td:nth-last-child(3)").TextContent);
                     var size = ReleaseInfo.GetBytes(row.Children[5].TextContent);
+                    var files = ParseUtil.CoerceInt(row.Children[6].TextContent);
                     var seeders = ParseUtil.CoerceInt(row.QuerySelector(".t_seeders").TextContent.Trim());
                     var leechers = ParseUtil.CoerceInt(row.QuerySelector(".t_leechers").TextContent.Trim());
                     var dlVolumeFactor = row.QuerySelector("span.t_tag_free_leech") != null ? 0 : 1;
@@ -233,6 +240,7 @@ namespace Jackett.Common.Indexers
                         Category = cat,
                         Description = description,
                         Size = size,
+                        Files = files,
                         Grabs = grabs,
                         Seeders = seeders,
                         Peers = seeders + leechers,

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -27,6 +28,7 @@ namespace Jackett.Common.Indexers
     /// Provider for Abnormal Private French Tracker
     /// gazelle based but the ajax.php API seems to be broken (always returning failure)
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public class Abnormal : BaseCachingWebIndexer
     {
         private string LoginUrl => SiteLink + "login.php";
@@ -49,21 +51,23 @@ namespace Jackett.Common.Indexers
         }
 
         public Abnormal(IIndexerConfigurationService configService, Utils.Clients.WebClient w, Logger l, IProtectionService ps)
-            : base(
-                name: "Abnormal",
-                description: "General French Private Tracker",
-                link: "https://abnormal.ws/",
-                caps: new TorznabCapabilities(),
-                configService: configService,
-                client: w,
-                logger: l,
-                p: ps,
-                downloadBase: "https://abnormal.ws/torrents.php?action=download&id=",
-                configData: new ConfigurationDataAbnormal())
+            : base(id: "abnormal",
+                   name: "Abnormal",
+                   description: "General French Private Tracker",
+                   link: "https://abnormal.ws/",
+                   caps: new TorznabCapabilities(),
+                   configService: configService,
+                   client: w,
+                   logger: l,
+                   p: ps,
+                   downloadBase: "https://abnormal.ws/torrents.php?action=download&id=",
+                   configData: new ConfigurationDataAbnormal())
         {
             Language = "fr-fr";
             Encoding = Encoding.UTF8;
             Type = "private";
+            // NET::ERR_CERT_DATE_INVALID expired ‎29 ‎July ‎2020
+            w.AddTrustedCertificate(new Uri(SiteLink).Host, "9cb32582b564256146616afddbdb8e7c94c428ed");
 
             // Movies
             AddCategoryMapping("MOVIE|DVDR", TorznabCatType.MoviesDVD);             // DVDR

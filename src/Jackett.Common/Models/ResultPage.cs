@@ -62,7 +62,7 @@ namespace Jackett.Common.Models
                         select new XElement("item",
                             new XElement("title", r.Title),
                             new XElement("guid", r.Guid.AbsoluteUri),  // GUID and (Link or Magnet) are mandatory
-                            new XElement("jackettindexer", new XAttribute("id", r.Origin.ID), r.Origin.DisplayName),
+                            new XElement("jackettindexer", new XAttribute("id", r.Origin.Id), r.Origin.DisplayName),
                             r.Comments == null ? null : new XElement("comments", r.Comments.AbsoluteUri),
                             r.PublishDate == DateTime.MinValue ? new XElement("pubDate", xmlDateFormat(DateTime.Now)) : new XElement("pubDate", xmlDateFormat(r.PublishDate)),
                             r.Size == null ? null : new XElement("size", r.Size),
@@ -82,6 +82,9 @@ namespace Jackett.Common.Models
                             getTorznabElement("rageid", r.RageID),
                             getTorznabElement("thetvdb", r.TVDBId),
                             getTorznabElement("imdb", r.Imdb == null ? null : ((long)r.Imdb).ToString("D7")),
+                            getTorznabElement("tmdb", r.TMDb),
+                            getTorznabElement("author", r.Author),
+                            getTorznabElement("booktitle", r.BookTitle),
                             getTorznabElement("seeders", r.Seeders),
                             getTorznabElement("peers", r.Peers),
                             getTorznabElement("infohash", r.InfoHash),
